@@ -1,127 +1,164 @@
 "use client";
 
 import { useState } from "react";
-import { Bookmark } from "lucide-react";
+import Link from "next/link";
+import { Bookmark, ExternalLink } from "lucide-react";
 import type { Product } from "@/lib/products";
 
-interface ProductCardProps {
-  product: Product;
-}
-
-export function ProductCard({ product }: ProductCardProps) {
+export function ProductCard({ product }: { product: Product }) {
   const [saved, setSaved] = useState(false);
   const [hovered, setHovered] = useState(false);
 
+  const slug = product.id;
+
   return (
-    <div
-      className="masonry-item group"
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      {/* Image wrapper — no fill, let image dictate height for true masonry */}
-      <div style={{ position: "relative", overflow: "hidden", borderRadius: "6px" }}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={product.image}
-          alt={product.title}
-          loading="lazy"
-          style={{
-            width: "100%",
-            height: "auto",
-            display: "block",
-            objectFit: "cover",
-            transition: "transform 0.4s ease",
-            transform: hovered ? "scale(1.03)" : "scale(1)",
-          }}
-        />
-
-        {/* Hover overlay */}
-        {hovered && (
-          <a
-            href={product.storeUrl}
-            target="_blank"
-            rel="noopener noreferrer"
+    <div className="masonry-item">
+      {/* Card shell */}
+      <div
+        style={{
+          position: "relative",
+          borderRadius: "var(--radius)",
+          overflow: "hidden",
+          background: "#fff",
+          cursor: "pointer",
+        }}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+      >
+        {/* ── Image — clicking goes to internal product page ── */}
+        <Link href={`/product/${slug}`} style={{ display: "block" }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={product.image}
+            alt={product.title}
+            loading="lazy"
             style={{
-              position: "absolute",
-              inset: 0,
-              background: "rgba(0,0,0,0.18)",
-              display: "flex",
-              alignItems: "flex-end",
-              justifyContent: "center",
-              paddingBottom: "10px",
-            }}
-          >
-            <span
-              style={{
-                background: "#fff",
-                color: "#1a1816",
-                fontSize: "11px",
-                fontWeight: 500,
-                padding: "5px 12px",
-                borderRadius: "999px",
-                whiteSpace: "nowrap",
-              }}
-            >
-              Shop at {product.store} ↗
-            </span>
-          </a>
-        )}
-
-        {/* Save button */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setSaved((s) => !s);
-          }}
-          aria-label={saved ? "Unsave" : "Save"}
-          style={{
-            position: "absolute",
-            top: "6px",
-            right: "6px",
-            background: "rgba(255,255,255,0.85)",
-            border: "none",
-            borderRadius: "50%",
-            width: "26px",
-            height: "26px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            cursor: "pointer",
-            opacity: hovered || saved ? 1 : 0,
-            transition: "opacity 0.2s",
-          }}
-        >
-          <Bookmark
-            size={12}
-            style={{
-              fill: saved ? "#1a1816" : "none",
-              stroke: "#1a1816",
+              width: "100%",
+              height: "auto",
+              display: "block",
+              transition: "transform 0.35s ease",
+              transform: hovered ? "scale(1.04)" : "scale(1)",
             }}
           />
-        </button>
+        </Link>
+
+        {/* ── Hover overlay ── */}
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            opacity: hovered ? 1 : 0,
+            transition: "opacity 0.2s ease",
+            pointerEvents: hovered ? "auto" : "none",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            padding: "10px",
+            /* gradient from top + bottom */
+            background:
+              "linear-gradient(180deg, rgba(53,45,39,0.55) 0%, transparent 35%, transparent 60%, rgba(53,45,39,0.45) 100%)",
+          }}
+        >
+          {/* Top row: title + Save */}
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "8px" }}>
+            <span
+              style={{
+                fontSize: "11px",
+                fontWeight: 500,
+                color: "#F5F5F5",
+                lineHeight: 1.3,
+                overflow: "hidden",
+                display: "-webkit-box",
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: "vertical",
+                maxWidth: "calc(100% - 56px)",
+              }}
+            >
+              {product.title}
+            </span>
+
+            {/* Save button */}
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setSaved((s) => !s);
+              }}
+              aria-label={saved ? "Unsave" : "Save"}
+              style={{
+                flexShrink: 0,
+                background: saved ? "#DCFCFF" : "#F5F5F5",
+                border: "none",
+                borderRadius: "8px",
+                padding: "5px 10px",
+                fontSize: "11px",
+                fontWeight: 600,
+                color: "#352D27",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
+                whiteSpace: "nowrap",
+                transition: "background 0.15s",
+              }}
+            >
+              <Bookmark
+                size={11}
+                style={{ fill: saved ? "#352D27" : "none", stroke: "#352D27" }}
+              />
+              {saved ? "Saved" : "Save"}
+            </button>
+          </div>
+
+          {/* Bottom row: Visit site */}
+          <div>
+            <a
+              href={product.storeUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "5px",
+                background: "#F5F5F5",
+                color: "#352D27",
+                fontSize: "11px",
+                fontWeight: 600,
+                padding: "5px 12px",
+                borderRadius: "999px",
+                textDecoration: "none",
+                transition: "background 0.15s",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "#DCFCFF")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "#F5F5F5")}
+            >
+              <ExternalLink size={11} />
+              Visit site
+            </a>
+          </div>
+        </div>
       </div>
 
-      {/* Card info */}
+      {/* Below-card label */}
       <div style={{ padding: "5px 2px 0" }}>
         <p
           style={{
             fontSize: "11px",
             fontWeight: 500,
-            color: "#1a1816",
+            color: "var(--fg)",
             lineHeight: 1.3,
             overflow: "hidden",
             display: "-webkit-box",
-            WebkitLineClamp: 2,
+            WebkitLineClamp: 1,
             WebkitBoxOrient: "vertical",
           }}
         >
           {product.title}
         </p>
         <div style={{ display: "flex", justifyContent: "space-between", marginTop: "2px" }}>
-          <span style={{ fontSize: "10px", color: "#78716c" }}>{product.store}</span>
-          <span style={{ fontSize: "10px", fontWeight: 600, color: "#1a1816" }}>
-            {product.price}
-          </span>
+          <span style={{ fontSize: "10px", color: "var(--muted)" }}>{product.store}</span>
+          <span style={{ fontSize: "10px", fontWeight: 600, color: "var(--fg)" }}>{product.price}</span>
         </div>
       </div>
     </div>

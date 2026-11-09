@@ -22,36 +22,33 @@ export default function Home() {
     });
   }, [query, active]);
 
-  const clearAll = () => {
-    setQuery("");
-    setActive(null);
-  };
-
   return (
     <main style={{ minHeight: "100vh", background: "var(--bg)" }}>
-      {/* Search + filters bar */}
+
+      {/* ── Sticky search + filter bar ── */}
       <section
         style={{
           position: "sticky",
           top: "52px",
           zIndex: 30,
-          background: "rgba(250,248,245,0.95)",
+          background: "rgba(245,245,245,0.95)",
           backdropFilter: "blur(8px)",
-          borderBottom: "1px solid #e7e5e4",
+          borderBottom: "1px solid rgba(53,45,39,0.08)",
           padding: "10px 16px",
         }}
       >
         <div style={{ maxWidth: "1400px", margin: "0 auto" }}>
-          {/* Search input */}
+
+          {/* Search */}
           <div style={{ position: "relative", maxWidth: "520px", margin: "0 auto 10px" }}>
             <Search
               size={14}
               style={{
                 position: "absolute",
-                left: "12px",
+                left: "13px",
                 top: "50%",
                 transform: "translateY(-50%)",
-                color: "#a8a29e",
+                color: "#637180",
                 pointerEvents: "none",
               }}
             />
@@ -63,28 +60,31 @@ export default function Home() {
               style={{
                 width: "100%",
                 height: "36px",
-                paddingLeft: "34px",
+                paddingLeft: "36px",
                 paddingRight: "36px",
-                border: "1px solid #e7e5e4",
+                border: "1px solid rgba(53,45,39,0.15)",
                 borderRadius: "999px",
                 background: "#fff",
                 fontSize: "12px",
-                color: "#1a1816",
+                color: "#352D27",
                 outline: "none",
+                transition: "border-color 0.15s",
               }}
+              onFocus={(e) => (e.currentTarget.style.borderColor = "#637180")}
+              onBlur={(e) => (e.currentTarget.style.borderColor = "rgba(53,45,39,0.15)")}
             />
             {query && (
               <button
                 onClick={() => setQuery("")}
                 style={{
                   position: "absolute",
-                  right: "10px",
+                  right: "11px",
                   top: "50%",
                   transform: "translateY(-50%)",
                   background: "none",
                   border: "none",
                   cursor: "pointer",
-                  color: "#a8a29e",
+                  color: "#637180",
                   display: "flex",
                   alignItems: "center",
                 }}
@@ -94,57 +94,47 @@ export default function Home() {
             )}
           </div>
 
-          {/* Aesthetic filters */}
-          <div
-            style={{
-              display: "flex",
-              gap: "6px",
-              flexWrap: "wrap",
-              justifyContent: "center",
-            }}
-          >
-            {aesthetics.map((a) => (
-              <button
-                key={a}
-                onClick={() => setActive(active === a ? null : a)}
-                style={{
-                  fontSize: "11px",
-                  padding: "4px 12px",
-                  borderRadius: "999px",
-                  border: "1px solid",
-                  cursor: "pointer",
-                  transition: "all 0.15s",
-                  background: active === a ? "#1a1816" : "#fff",
-                  color: active === a ? "#fff" : "#57534e",
-                  borderColor: active === a ? "#1a1816" : "#d6d3d1",
-                  fontWeight: active === a ? 500 : 400,
-                }}
-              >
-                {a}
-              </button>
-            ))}
+          {/* Aesthetic filter pills */}
+          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", justifyContent: "center" }}>
+            {aesthetics.map((a) => {
+              const isActive = active === a;
+              return (
+                <button
+                  key={a}
+                  onClick={() => setActive(isActive ? null : a)}
+                  style={{
+                    fontSize: "11px",
+                    padding: "4px 13px",
+                    borderRadius: "999px",
+                    border: "1px solid",
+                    cursor: "pointer",
+                    transition: "all 0.15s",
+                    background: isActive ? "#DCFCFF" : "#fff",
+                    color: isActive ? "#352D27" : "#637180",
+                    borderColor: isActive ? "#637180" : "rgba(53,45,39,0.15)",
+                    fontWeight: isActive ? 600 : 400,
+                  }}
+                >
+                  {a}
+                </button>
+              );
+            })}
           </div>
         </div>
       </section>
 
-      {/* Feed */}
-      <section style={{ maxWidth: "1400px", margin: "0 auto", padding: "12px 12px 32px" }}>
+      {/* ── Feed ── */}
+      <section style={{ maxWidth: "1400px", margin: "0 auto", padding: "12px 12px 40px" }}>
         {filtered.length === 0 ? (
-          <div
-            style={{
-              textAlign: "center",
-              padding: "80px 16px",
-              color: "#a8a29e",
-            }}
-          >
+          <div style={{ textAlign: "center", padding: "80px 16px", color: "#637180" }}>
             <p style={{ fontSize: "14px", marginBottom: "12px" }}>
               Nothing quite right yet? Try removing a filter.
             </p>
             <button
-              onClick={clearAll}
+              onClick={() => { setActive(null); setQuery(""); }}
               style={{
                 fontSize: "12px",
-                color: "#57534e",
+                color: "#352D27",
                 background: "none",
                 border: "none",
                 cursor: "pointer",
@@ -163,14 +153,7 @@ export default function Home() {
         )}
 
         {filtered.length > 0 && (
-          <p
-            style={{
-              textAlign: "center",
-              fontSize: "11px",
-              color: "#d6d3d1",
-              marginTop: "32px",
-            }}
-          >
+          <p style={{ textAlign: "center", fontSize: "11px", color: "rgba(99,113,128,0.5)", marginTop: "32px" }}>
             See something you love? Tap to view the details and shop from the store.
           </p>
         )}

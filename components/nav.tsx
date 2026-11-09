@@ -21,9 +21,9 @@ export function Nav() {
           position: "sticky",
           top: 0,
           zIndex: 50,
-          background: "rgba(250,248,245,0.92)",
-          backdropFilter: "blur(10px)",
-          borderBottom: "1px solid #e7e5e4",
+          background: "rgba(245,245,245,0.92)",
+          backdropFilter: "blur(12px)",
+          borderBottom: "1px solid rgba(53,45,39,0.1)",
         }}
       >
         <div
@@ -45,7 +45,7 @@ export function Nav() {
               fontSize: "17px",
               fontWeight: 700,
               letterSpacing: "-0.02em",
-              color: "#1a1816",
+              color: "#352D27",
               textDecoration: "none",
               flexShrink: 0,
             }}
@@ -53,22 +53,15 @@ export function Nav() {
             Yousra
           </Link>
 
-          {/* Desktop nav links */}
-          <nav
-            style={{
-              display: "flex",
-              gap: "24px",
-              fontSize: "13px",
-              color: "#78716c",
-            }}
-            className="hidden md:flex"
-          >
+          {/* Desktop nav */}
+          <nav style={{ display: "flex", gap: "24px", fontSize: "13px" }} className="hidden md:flex">
             {links.map((l) => (
               <Link
                 key={l.href}
                 href={l.href}
-                style={{ textDecoration: "none", color: "inherit" }}
-                className="hover:text-stone-900 transition-colors"
+                style={{ textDecoration: "none", color: "#637180", transition: "color 0.15s" }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = "#352D27")}
+                onMouseLeave={(e) => (e.currentTarget.style.color = "#637180")}
               >
                 {l.label}
               </Link>
@@ -76,10 +69,7 @@ export function Nav() {
           </nav>
 
           {/* Desktop icons */}
-          <div
-            style={{ display: "flex", gap: "8px", color: "#78716c" }}
-            className="hidden md:flex"
-          >
+          <div style={{ display: "flex", gap: "4px" }} className="hidden md:flex">
             {[Search, Bookmark, User].map((Icon, i) => (
               <button
                 key={i}
@@ -87,12 +77,21 @@ export function Nav() {
                   background: "none",
                   border: "none",
                   cursor: "pointer",
-                  padding: "6px",
-                  color: "inherit",
+                  padding: "7px",
+                  color: "#637180",
                   display: "flex",
                   alignItems: "center",
+                  borderRadius: "8px",
+                  transition: "background 0.15s, color 0.15s",
                 }}
-                className="hover:text-stone-900 transition-colors"
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "#DCFCFF";
+                  e.currentTarget.style.color = "#352D27";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "none";
+                  e.currentTarget.style.color = "#637180";
+                }}
               >
                 <Icon size={16} />
               </button>
@@ -107,7 +106,7 @@ export function Nav() {
               background: "none",
               border: "none",
               cursor: "pointer",
-              color: "#1a1816",
+              color: "#352D27",
               padding: "4px",
             }}
           >
@@ -123,7 +122,8 @@ export function Nav() {
             position: "fixed",
             inset: 0,
             zIndex: 40,
-            background: "rgba(0,0,0,0.3)",
+            background: "rgba(53,45,39,0.25)",
+            backdropFilter: "blur(2px)",
           }}
           onClick={() => setMenuOpen(false)}
         >
@@ -134,7 +134,7 @@ export function Nav() {
               right: 0,
               width: "240px",
               height: "100%",
-              background: "#FAF8F5",
+              background: "#F5F5F5",
               padding: "64px 24px 24px",
               display: "flex",
               flexDirection: "column",
@@ -147,11 +147,7 @@ export function Nav() {
                 key={l.href}
                 href={l.href}
                 onClick={() => setMenuOpen(false)}
-                style={{
-                  textDecoration: "none",
-                  fontSize: "15px",
-                  color: "#1a1816",
-                }}
+                style={{ textDecoration: "none", fontSize: "15px", color: "#352D27" }}
               >
                 {l.label}
               </Link>

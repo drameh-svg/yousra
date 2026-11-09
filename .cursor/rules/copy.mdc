@@ -1,0 +1,166 @@
+---
+description: Yousra website copy — all pages, headlines, body, CTAs, empty states
+alwaysApply: false
+---
+
+# Website Copy
+
+## /onboarding — Make it yours
+
+**Headline:** Modesty looks different on everyone. What does it look like on you?
+
+**Body:** Choose the coverage, sizes, budget, and aesthetics you prefer. We'll use your choices to shape what you see. You can change them anytime.
+
+**CTA:** Set my preferences →
+
+---
+
+## / — For You
+
+**Headline:** Find sutra with Yousra.
+
+**Subhead:** Modest fashion that feels like you. Search for something specific, or scroll through pieces picked for your preferences.
+
+**Search placeholder:** What are you looking for? Try "black maxi skirt"
+
+**Aesthetic filters:** What's your vibe?
+Minimal · Romantic · Streetwear · Classic · Casual
+
+**Feed prompt:** See something you love? Tap to view the details and shop from the store.
+
+---
+
+## /search — Search
+
+**Headline:** Know what you're looking for? Let's find it.
+
+**Body:** Search for a piece, color, style, or occasion. Not sure where to start? Browse a suggested category.
+
+**Suggested categories:** Dresses · Skirts · Tops · Activewear · Swimwear · Occasionwear
+
+---
+
+## /search/results — Results
+
+**Headline:** Pieces that match your search
+
+**Subhead:** Make the results yours. Filter by price, size, color, clothing category, and aesthetic.
+
+**Empty-state copy:** Nothing quite right yet? Try removing a filter or exploring a related category.
+
+---
+
+## /product/[slug] — Product
+
+**Headline:** [Product name]
+
+**Product details:** [Price] · [Store name]
+
+A description of the piece, with available sizing and product details. Check the seller's page for the latest availability and purchase information.
+
+**CTA:** Shop at [Store name] ↗
+
+**Similar results:** Keep looking? Explore similar pieces below.
+
+---
+
+## /explore — Explore
+
+**Headline:** Follow your style somewhere new.
+
+**Subhead:** Find a piece you didn't know you needed, a brand you haven't met, or a new way to wear what you love.
+
+**Sections:**
+- Spotlighted pieces — A closer look at pieces worth discovering.
+- Browse by category — Start with the kind of clothing you need.
+- Spotlighted brands this week — Get to know the brands behind the pieces.
+- Trending — See what shoppers are exploring.
+- Love a brand's style? — Find modest alternatives with a similar feel.
+
+---
+
+## /category/[slug] — Category
+
+**Headline:** [Category], your way.
+
+**Subhead:** Explore [category] across styles and stores. Filter until you find a piece that fits your preferences and budget.
+
+**CTA:** Explore [category] →
+
+---
+
+## /aesthetic/[slug] — Aesthetic
+
+**Headline:** Your style, with room for modesty.
+
+**Subhead:** Explore [aesthetic] pieces that fit the look you love and the coverage you choose.
+
+**CTA:** Shop the aesthetic →
+
+---
+
+## /brand/[slug] — Brand
+
+**Headline:** Meet [Brand name].
+
+**Subhead:** Discover the pieces available from [Brand name] and find something that feels like you.
+
+**CTA:** Explore the pieces →
+
+---
+
+## /alternatives/[brand-slug] — Brand alternatives
+
+**Headline:** Love the look? Find your version of it.
+
+**Subhead:** Explore modest alternatives with a similar style to pieces from [brand name]. These are independent suggestions, not products from or endorsed by that brand.
+
+**CTA:** Explore alternatives →
+
+---
+
+## /saved — Saved
+
+**Headline:** Good finds are worth keeping.
+
+**Body:** Your saved pieces and brands are here whenever you're ready to come back to them.
+
+**Empty state:** Nothing saved yet. Explore pieces and tap the save icon when something catches your eye.
+
+**CTA:** Start exploring →
+
+---
+
+## /profile/preferences — Preferences
+
+**Headline:** Make Yousra feel more like you.
+
+**Body:** Your style and needs can change. Update your coverage preferences, sizes, budget, and aesthetics whenever you like.
+
+**CTA:** Save preferences →
+
+---
+
+## /about — About Yousra
+
+**Headline:** Modest fashion should be easier to find.
+
+**Body:** Searching store after store for a piece that fits your style, preferences, and budget takes time. Yousra brings clothing discovery into one place, so you can focus on what you love.
+
+We believe modesty is personal. Yousra helps you search on your own terms, discover new pieces and brands, and shop directly from the stores that sell them.
+
+**CTA:** Find your next piece →
+
+---
+
+## /contact — Contact
+
+**Headline:** Let's talk.
+
+**Body:** Have feedback, a question, or a brand you'd love to see on Yousra? Send us a message.
+
+**CTA:** Send message →
+
+---
+
+> **Copy note:** Before publishing, replace all bracketed product and brand details with verified information. Avoid labeling a section "Trending" until Yousra has a defined way to measure it.

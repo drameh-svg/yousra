@@ -1,0 +1,76 @@
+---
+description: Yousra deep research — product principles, features, comparisons, shopper benefits
+alwaysApply: false
+---
+
+# Deep Research: Yousra — Modest Fashion Discovery
+
+## Overview
+
+- **Purpose:** Help shoppers discover clothing that fits their own modesty preferences, aesthetic, size, and budget, then direct them to the store selling it.
+- **Core experience:** Search bar above an endless personalized For You feed; suggested categories before typing; filtered search results; product pages that link to sellers; Explore page for structured discovery.
+- **Positioning to test:** "Find the clothes you love, with the coverage you want — without searching every store yourself." Fragmented discovery, affordability, and varying definitions of modesty were identified as problems; the strength of this positioning still needs shopper validation.
+
+## Core Product Principles
+
+- **Personal, not prescriptive:** Onboarding captures what each shopper wants. Yousra should not assume one definition of "modest."
+- **Discover pieces first:** Make individual clothes easy to find; let shoppers learn about the brand from a piece they like.
+- **Move between inspiration and intent:** For You supports browsing; search helps someone with a specific item in mind; Explore organizes aesthetics, categories, trends, and spotlights.
+- **Make the path to purchase clear:** Yousra helps shoppers discover products, while the seller handles the purchase. Both the product image and a prominent button on the product page should clearly lead to the seller.
+- **Earn trust through accuracy:** Descriptions, prices, sizes, and product links need to be reliable. Label sponsored spotlights or affiliate relationships clearly; the FTC advises conspicuous disclosure of material brand relationships.
+
+## Key Features
+
+### For You — landing page
+- Put search at the top, followed by one continuous, algorithmically personalized feed.
+- Add topline aesthetic filters so a shopper can steer the feed without starting a new search.
+- Use endless scrolling. Measure whether it leads to useful product and seller clicks — more time on the platform alone does not prove better shopping outcomes.
+
+### Search and results
+- Show suggested categories before the shopper types.
+- After a search, allow filtering by price, size, color, clothing category, and aesthetic.
+- Show active filters and explain empty results (e.g., offer a wider price range rather than silently returning nothing).
+
+### Product page
+- Include a product description and the details available from the seller.
+- Make the image clickable and provide a large "Shop at [store]" button beside it; both lead to that product on the seller's site.
+- Show similar results below the main product.
+
+### Explore
+- Spotlighted pieces
+- Browse by category
+- Spotlighted brands this week
+- Trending
+- Find modest alternatives to brands you might like
+
+## Comparable Products & What to Learn
+
+- **Pinterest:** Useful reference for visual discovery. Image-based search is a possible later feature, not something the current Yousra flow requires.
+- **SSQRD:** Close comparison with natural-language product search and personalized discovery, including a "Modest" style in its brand directory. Yousra should test whether its more detailed modesty preferences and shopping filters produce better results for specific requests.
+- **Research gap:** Search volumes, Yousra's conversion rates, and whether its results outperform either reference have not been established. Those need testing, not marketing claims.
+
+## Shopper Benefits & Copy Material
+
+- Less searching across stores: "Search once. Discover pieces from more places."
+- More relevant results: "Find clothing that fits your style, budget, and preferences."
+- Easier inspiration: "Scroll until something feels like you — or search for exactly what you need."
+- Clear next step: "See the details on Yousra, then shop directly from the store."
+
+**Suggested landing-page copy:**
+> Find modest fashion that feels like you. Search for the piece you have in mind, or discover something new in a feed shaped by your preferences.
+
+**Suggested search placeholder:**
+> Try "black maxi skirt" or "wedding guest dress"
+
+**Suggested product-page CTA:**
+> Shop at [Store Name] ↗
+
+Avoid claiming that Yousra searches every store, guarantees affordability, or verifies fit until the catalog and data support those promises.
+
+## References
+
+- Yousra concept and priorities: Shura Brainstorm meeting.
+- Pinterest visual search: Pinterest Business Help.
+- SSQRD's stated product features: SSQRD About and brand directory.
+- E-commerce site structure: Google Search Central.
+- Paid-content disclosures: U.S. Federal Trade Commission.

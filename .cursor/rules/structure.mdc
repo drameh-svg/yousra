@@ -1,0 +1,47 @@
+---
+description: Yousra site structure — navigation, sitemap, page purposes, shopper flows, MVP scope
+alwaysApply: true
+---
+
+# Site Structure
+
+## Main Navigation
+
+- **For You** — personalized clothing feed
+- **Explore** — structured browsing and discovery
+- **Saved** — bookmarked pieces and brands (if saving is available)
+- **Profile** — preferences and account settings
+- **Search** — visible at the top of For You and accessible from other pages
+
+## Sitemap & Page Purpose
+
+| Route | Purpose |
+|-------|---------|
+| `/onboarding` | Ask about modesty preferences, sizes, budget, aesthetics. Keep it short, skippable, and editable later. |
+| `/` | For You: search at top, topline aesthetic filters, one continuous personalized feed of pieces. Cards show image, price, store, and save option. |
+| `/search` | Show suggested categories before typing; query suggestions as they type. |
+| `/search/results` | Matching pieces with filters: price, size, color, clothing category, aesthetic. Active filters easy to remove; explain empty results. |
+| `/product/[slug]` | Photos, description, price, available sizes, selling store. Image + "Shop at [Store]" button both link to seller's site. Similar pieces below. |
+| `/explore` | Spotlighted pieces, browse by category, spotlighted brands this week, trending, modest alternatives to brands you might like. |
+| `/category/[slug]` | Pieces in a clothing category with filters and links to product pages. |
+| `/aesthetic/[slug]` | Pieces matching a particular style, with links back to related categories. |
+| `/brand/[slug]` | Introduce a brand and show its pieces available through Yousra. |
+| `/alternatives/[brand-slug]` | Modest alternatives to styles associated with a brand. Clearly distinguish from that brand's own products. |
+| `/saved` | Revisit bookmarked pieces and brands. |
+| `/profile/preferences` | Update what shapes the feed and search results. |
+| `/about` and `/contact` | Explain how Yousra works, where purchases happen, how shoppers or brands can reach the team. |
+
+## Key Shopper Flows
+
+- **I know what I want:** For You search → suggested category or query → filtered results → product page → seller site.
+- **I'm browsing:** For You feed → product page → seller site or similar pieces.
+- **I want inspiration:** Explore → aesthetic, category, trending piece, or spotlighted brand → product page → seller site.
+- **My results don't fit:** Results or For You → adjust filters or preferences → updated pieces.
+
+## MVP vs. Later
+
+**MVP:** Onboarding, For You, search and results, product pages, Explore, category pages, preference editing.
+
+**Later:** Saved items, dedicated aesthetic and brand pages, brand-alternative pages, advanced personalization, tailoring, thrifting, and image-based search (validate before building).
+
+**Design rule:** For You is the uninterrupted personalized feed. Explore is where the organized sections live.

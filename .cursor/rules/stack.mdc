@@ -1,0 +1,16 @@
+---
+description: Yousra tech stack — framework, styling, animations, hosting, analytics
+alwaysApply: true
+---
+
+# Tech Stack
+
+| Layer | Choice |
+|-------|--------|
+| Framework | Next.js + TypeScript |
+| Styling | Tailwind + shadcn/ui |
+| Animations | GSAP (optional) |
+| Hosting | Vercel |
+| Analytics | Google Analytics or PostHog |
+
+> **Note:** This is a frontend-only site. No backend is attached yet.

@@ -38,3 +38,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Local backend data and test artifacts
+/data/
+/test-results/
+*.sqlite*

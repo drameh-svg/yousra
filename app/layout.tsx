@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Instrument_Serif, Atkinson_Hyperlegible } from "next/font/google";
+import { SessionProvider } from "@/components/session-provider";
 import { Nav } from "@/components/nav";
 import "./globals.css";
 
@@ -28,9 +29,8 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${instrumentSerif.variable} ${hyperlegible.variable}`}>
-      <body>
-        <Nav />
-        {children}
+      <body style={{ fontFamily: "var(--font-sans, 'Atkinson Hyperlegible', system-ui, sans-serif)", background: "var(--bg, #F5F5F5)", color: "var(--fg, #352D27)" }}>
+        <SessionProvider><Nav />{children}</SessionProvider>
       </body>
     </html>
   );

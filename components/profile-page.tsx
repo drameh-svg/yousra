@@ -1,0 +1,8 @@
+'use client';
+import {useState} from 'react';
+import {api} from '@/lib/api';
+import {AccountGate} from '@/components/account-gate';
+import {useSession} from '@/components/session-provider';
+import {PreferenceForm,secondaryClass} from '@/components/preference-form';
+export function ProfilePage(){return <AccountGate><ProfileBody/></AccountGate>}
+function ProfileBody(){const {user,profile,reload,signOut}=useSession();const [error,setError]=useState(''),[message,setMessage]=useState('');if(!profile)return null;return <main className="mx-auto max-w-3xl px-4 py-12"><p className="mb-3 text-xs uppercase tracking-widest text-stone-400">Your profile</p><h1 className="mb-2 text-3xl font-semibold tracking-tight">Make Yousra feel more like you.</h1><p className="mb-7 text-sm text-stone-500">Your style and needs can change. Update your coverage preferences, sizes, budget, and aesthetics whenever you like.</p><PreferenceForm key={profile.version} initial={profile.preferences} onSave={async preferences=>{await api('/profile','PUT',{preferences});await reload();setMessage('Your preferences are saved.')}}/>{message?<p role="status" className="mt-4 text-sm text-stone-600">{message}</p>:null}<section className="mt-8 rounded-2xl border border-stone-100 bg-white p-6"><h2 className="mb-2 text-lg font-medium">Your account</h2><p className="mb-4 text-sm text-stone-500">{user?.email}</p><p className="mb-5 text-xs text-stone-400">Your email is stored with your account. Newsletter updates require the separate signup choice.</p><button className={secondaryClass} onClick={()=>void signOut().catch(e=>setError(e.message))}>Sign out</button>{error?<p role="alert" className="mt-3 text-sm text-red-700">{error}</p>:null}</section></main>}

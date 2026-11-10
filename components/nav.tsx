@@ -1,8 +1,11 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 import Link from "next/link";
 import { Search, Bookmark, User, Menu, X } from "lucide-react";
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
+import { Separator } from "@/components/ui/separator";
 
 const links = [
   { href: "/", label: "For You" },
@@ -11,169 +14,75 @@ const links = [
   { href: "/profile", label: "Profile" },
 ];
 
-const footerLinks = [
-  { href: "/search", label: "Search" },
-  { href: "/about", label: "About" },
-  { href: "/contact", label: "Contact" },
-];
-
 export function Nav() {
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [open, setOpen] = useState(false);
+  const pathname = usePathname();
 
   return (
-    <>
-      <header
-        style={{
-          position: "sticky",
-          top: 0,
-          zIndex: 50,
-          background: "rgba(245,245,245,0.92)",
-          backdropFilter: "blur(12px)",
-          borderBottom: "1px solid rgba(53,45,39,0.1)",
-        }}
-      >
-        <div
-          style={{
-            maxWidth: "1400px",
-            margin: "0 auto",
-            padding: "0 16px",
-            height: "52px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: "16px",
-          }}
-        >
-          {/* Logo */}
-          <Link
-            href="/"
-            style={{
-              fontFamily: "var(--font-serif, 'Instrument Serif', Georgia, serif)",
-              fontSize: "20px",
-              fontWeight: 400,
-              letterSpacing: "0.01em",
-              color: "#352D27",
-              textDecoration: "none",
-              flexShrink: 0,
-            }}
-          >
-            Yousra
+    <header className="sticky top-0 z-50 w-full bg-[#FAF8F5]/90 backdrop-blur-md border-b border-stone-100">
+      <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
+        {/* Logo */}
+        <Link href="/" className="text-xl font-semibold tracking-tight text-stone-900 shrink-0">
+          Yousra
+        </Link>
+
+        {/* Desktop nav */}
+        <nav className="hidden md:flex items-center gap-6 text-sm text-stone-500">
+          {links.map((l) => (
+            <Link
+              key={l.href}
+              href={l.href}
+              className={`hover:text-stone-900 transition-colors ${pathname===l.href?"text-stone-900 font-medium":""}`}
+            >
+              {l.label}
+            </Link>
+          ))}
+        </nav>
+
+        {/* Desktop icons */}
+        <div className="hidden md:flex items-center gap-3 text-stone-500">
+          <Link href="/search" aria-label="Search" className="hover:text-stone-900 transition-colors p-1">
+            <Search size={18} />
           </Link>
-
-          {/* Desktop nav */}
-          <nav style={{ display: "flex", gap: "24px", fontSize: "13px" }} className="hidden md:flex">
-            {links.map((l) => (
-              <Link
-                key={l.href}
-                href={l.href}
-                style={{ textDecoration: "none", color: "#637180", transition: "color 0.15s" }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = "#352D27")}
-                onMouseLeave={(e) => (e.currentTarget.style.color = "#637180")}
-              >
-                {l.label}
-              </Link>
-            ))}
-          </nav>
-
-          {/* Desktop footer links */}
-          <div style={{ display: "flex", gap: "16px", fontSize: "12px" }} className="hidden md:flex">
-            {footerLinks.map((l) => (
-              <Link key={l.href} href={l.href}
-                style={{ textDecoration: "none", color: "#637180", transition: "color 0.15s" }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = "#352D27")}
-                onMouseLeave={(e) => (e.currentTarget.style.color = "#637180")}>
-                {l.label}
-              </Link>
-            ))}
-          </div>
-
-          {/* Desktop icons */}
-          <div style={{ display: "flex", gap: "4px" }} className="hidden md:flex">
-            {[Search, Bookmark, User].map((Icon, i) => (
-              <button
-                key={i}
-                style={{
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  padding: "7px",
-                  color: "#637180",
-                  display: "flex",
-                  alignItems: "center",
-                  borderRadius: "8px",
-                  transition: "background 0.15s, color 0.15s",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "#DCFCFF";
-                  e.currentTarget.style.color = "#352D27";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "none";
-                  e.currentTarget.style.color = "#637180";
-                }}
-              >
-                <Icon size={16} />
-              </button>
-            ))}
-          </div>
-
-          {/* Mobile hamburger */}
-          <button
-            className="md:hidden"
-            onClick={() => setMenuOpen((o) => !o)}
-            style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              color: "#352D27",
-              padding: "4px",
-            }}
-          >
-            {menuOpen ? <X size={20} /> : <Menu size={20} />}
-          </button>
+          <Link href="/saved" aria-label="Saved" className="hover:text-stone-900 transition-colors p-1">
+            <Bookmark size={18} />
+          </Link>
+          <Link href="/profile" aria-label="Profile" className="hover:text-stone-900 transition-colors p-1">
+            <User size={18} />
+          </Link>
         </div>
-      </header>
 
-      {/* Mobile drawer */}
-      {menuOpen && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 40,
-            background: "rgba(53,45,39,0.25)",
-            backdropFilter: "blur(2px)",
-          }}
-          onClick={() => setMenuOpen(false)}
-        >
-          <div
-            style={{
-              position: "absolute",
-              top: 0,
-              right: 0,
-              width: "240px",
-              height: "100%",
-              background: "#F5F5F5",
-              padding: "64px 24px 24px",
-              display: "flex",
-              flexDirection: "column",
-              gap: "24px",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {links.map((l) => (
-              <Link
-                key={l.href}
-                href={l.href}
-                onClick={() => setMenuOpen(false)}
-                style={{ textDecoration: "none", fontSize: "15px", color: "#352D27" }}
-              >
-                {l.label}
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
-    </>
+        {/* Mobile hamburger */}
+        <Sheet open={open} onOpenChange={setOpen}>
+          <SheetTrigger className="md:hidden p-1 text-stone-600" aria-label="Open menu">
+            <Menu size={20} />
+          </SheetTrigger>
+          <SheetContent side="right" showCloseButton={false} className="w-64 bg-[#FAF8F5] pt-10 px-6">
+            <SheetTitle className="sr-only">Navigation</SheetTitle>
+            <button
+              onClick={() => setOpen(false)}
+              className="absolute top-4 right-4 text-stone-400 hover:text-stone-900"
+              aria-label="Close menu"
+            >
+              <X size={20} />
+            </button>
+            <p className="text-lg font-semibold mb-6 text-stone-900">Yousra</p>
+            <Separator className="mb-6 bg-stone-100" />
+            <nav className="flex flex-col gap-5 text-stone-600">
+              {links.map((l) => (
+                <Link
+                  key={l.href}
+                  href={l.href}
+                  onClick={() => setOpen(false)}
+                  className="text-sm hover:text-stone-900 transition-colors"
+                >
+                  {l.label}
+                </Link>
+              ))}
+            </nav>
+          </SheetContent>
+        </Sheet>
+      </div>
+    </header>
   );
 }

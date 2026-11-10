@@ -9,41 +9,31 @@ export function ProductCard({ product }: { product: Product }) {
   const [saved, setSaved] = useState(false);
   const [hovered, setHovered] = useState(false);
 
-  const slug = product.id;
-
   return (
     <div className="masonry-item">
-      {/* Card shell */}
       <div
-        style={{
-          position: "relative",
-          borderRadius: "var(--radius)",
-          overflow: "hidden",
-          background: "#fff",
-          cursor: "pointer",
-        }}
+        style={{ position: "relative", borderRadius: "var(--radius)", overflow: "hidden" }}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >
-        {/* ── Image — clicking goes to internal product page ── */}
-        <Link href={`/product/${slug}`} style={{ display: "block" }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={product.image}
-            alt={product.title}
-            loading="lazy"
-            style={{
-              width: "100%",
-              height: "auto",
-              display: "block",
-              transition: "transform 0.35s ease",
-              transform: hovered ? "scale(1.04)" : "scale(1)",
-            }}
-          />
-        </Link>
+        {/* Image */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={product.image}
+          alt={product.title}
+          loading="lazy"
+          style={{
+            width: "100%",
+            height: "auto",
+            display: "block",
+            transition: "transform 0.35s ease",
+            transform: hovered ? "scale(1.04)" : "scale(1)",
+          }}
+        />
 
-        {/* ── Hover overlay ── */}
-        <div
+        {/* Overlay — the entire overlay is the internal product page link */}
+        <Link
+          href={`/product/${product.id}`}
           style={{
             position: "absolute",
             inset: 0,
@@ -54,12 +44,13 @@ export function ProductCard({ product }: { product: Product }) {
             flexDirection: "column",
             justifyContent: "space-between",
             padding: "10px",
-            /* gradient from top + bottom */
             background:
               "linear-gradient(180deg, rgba(53,45,39,0.55) 0%, transparent 35%, transparent 60%, rgba(53,45,39,0.45) 100%)",
+            textDecoration: "none",
           }}
+          aria-label={`View ${product.title}`}
         >
-          {/* Top row: title + Save */}
+          {/* Top: title + Save */}
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "8px" }}>
             <span
               style={{
@@ -71,13 +62,12 @@ export function ProductCard({ product }: { product: Product }) {
                 display: "-webkit-box",
                 WebkitLineClamp: 2,
                 WebkitBoxOrient: "vertical",
-                maxWidth: "calc(100% - 56px)",
+                maxWidth: "calc(100% - 60px)",
               }}
             >
               {product.title}
             </span>
 
-            {/* Save button */}
             <button
               onClick={(e) => {
                 e.preventDefault();
@@ -98,19 +88,15 @@ export function ProductCard({ product }: { product: Product }) {
                 display: "flex",
                 alignItems: "center",
                 gap: "4px",
-                whiteSpace: "nowrap",
                 transition: "background 0.15s",
               }}
             >
-              <Bookmark
-                size={11}
-                style={{ fill: saved ? "#352D27" : "none", stroke: "#352D27" }}
-              />
+              <Bookmark size={11} style={{ fill: saved ? "#352D27" : "none", stroke: "#352D27" }} />
               {saved ? "Saved" : "Save"}
             </button>
           </div>
 
-          {/* Bottom row: Visit site */}
+          {/* Bottom: Visit site (external) */}
           <div>
             <a
               href={product.storeUrl}
@@ -128,16 +114,13 @@ export function ProductCard({ product }: { product: Product }) {
                 padding: "5px 12px",
                 borderRadius: "999px",
                 textDecoration: "none",
-                transition: "background 0.15s",
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "#DCFCFF")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "#F5F5F5")}
             >
               <ExternalLink size={11} />
               Visit site
             </a>
           </div>
-        </div>
+        </Link>
       </div>
 
       {/* Below-card label */}

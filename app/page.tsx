@@ -25,6 +25,35 @@ export default function Home() {
   return (
     <main style={{ minHeight: "100vh", background: "var(--bg)" }}>
 
+      {/* ── Hero tagline ── */}
+      <div style={{ textAlign: "center", padding: "32px 16px 0" }}>
+        <h1
+          style={{
+            fontFamily: "var(--font-serif, 'Instrument Serif', Georgia, serif)",
+            fontWeight: 400,
+            fontSize: "clamp(28px, 5vw, 46px)",
+            color: "#352D27",
+            lineHeight: 1.15,
+            letterSpacing: "-0.01em",
+            marginBottom: "6px",
+          }}
+        >
+          Find sutra with Yousra.
+        </h1>
+        <p
+          style={{
+            fontSize: "13px",
+            color: "#637180",
+            maxWidth: "380px",
+            margin: "0 auto 24px",
+            lineHeight: 1.6,
+          }}
+        >
+          Modest fashion that feels like you — search for something specific, or scroll through
+          pieces picked for your preferences.
+        </p>
+      </div>
+
       {/* ── Sticky search + filter bar ── */}
       <section
         style={{

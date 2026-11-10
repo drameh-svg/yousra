@@ -25,7 +25,12 @@ body {
   background-color: var(--bg);
   color: var(--fg);
   min-height: 100dvh;
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: var(--font-sans, "Atkinson Hyperlegible", system-ui, sans-serif);
+}
+
+h1, h2, h3, h4, h5, h6, .font-serif {
+  font-family: var(--font-serif, "Instrument Serif", Georgia, serif);
+  font-weight: 400;
 }
 
 ::selection {

@@ -42,9 +42,10 @@ export function Nav() {
           <Link
             href="/"
             style={{
-              fontSize: "17px",
-              fontWeight: 700,
-              letterSpacing: "-0.02em",
+              fontFamily: "var(--font-serif, 'Instrument Serif', Georgia, serif)",
+              fontSize: "20px",
+              fontWeight: 400,
+              letterSpacing: "0.01em",
               color: "#352D27",
               textDecoration: "none",
               flexShrink: 0,

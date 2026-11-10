@@ -13,7 +13,14 @@ export function SessionProvider({children}:{children:ReactNode}){
  const reloadLibrary=useCallback(async()=>{const [c,r]=await Promise.all([api<{collections:Collection[]}>('/collections'),api<{reactions:Record<string,Reaction>}>('/reactions')]);setCollections(c.collections);setReactions(r.reactions);setRevision(r=>r+1);},[]);
  const reload=useCallback(async()=>{
   try{const me=await api<{user:Account;profile:Profile}>('/me');setUser(me.user);setProfile(me.profile);setError('');if(me.profile.onboarded)await reloadLibrary();}
-  catch(e){if(e instanceof ApiError&&e.status===401){setUser(null);setProfile(null);setCollections([]);setReactions({});setError('');}else setError(e instanceof Error?e.message:'Could not connect.');}
+  catch(e){
+   // 401 → unauthenticated (expected); 503/5xx with Supabase-not-configured message → treat as unauthenticated
+   // so pages that don't require auth (For You, Explore, etc.) still render instead of showing an error.
+   const msg=e instanceof Error?e.message:'';
+   const isUnconfigured=msg.includes('AUTH_MODE')||msg.includes('STORAGE')||msg.includes('Local mode');
+   if((e instanceof ApiError&&e.status===401)||isUnconfigured){setUser(null);setProfile(null);setCollections([]);setReactions({});setError('');}
+   else setError(msg||'Could not connect.');
+  }
   finally{setLoading(false);}
  },[reloadLibrary]);
  useEffect(()=>{let active=true;queueMicrotask(()=>{if(active)void reload()});void api<{discovery:string}>('/health').then(d=>setSample(d.discovery==='sample')).catch(()=>{});return()=>{active=false};},[reload]);

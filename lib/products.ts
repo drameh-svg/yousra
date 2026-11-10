@@ -9,6 +9,8 @@ export interface Product {
   aesthetic: Aesthetic;
   storeUrl: string;
   pinUrl: string;
+  description: string;
+  sizes: string[];
 }
 
 const PIN = (path: string) => `https://i.pinimg.com/originals/${path}`;
@@ -24,6 +26,9 @@ export const products: Product[] = [
     aesthetic: "Minimal",
     storeUrl: "https://klaythelabel.com/products/espresso",
     pinUrl: "https://www.pinterest.com/pin/716635359503132103/",
+    description:
+      "Think red-brown autumn leaves, gathered into a single shade. Lightweight crinkle rayon with a relaxed, breathable drape — effortless coverage from morning to evening.",
+    sizes: ["XS", "S", "M", "L", "XL"],
   },
   {
     id: "2",
@@ -34,6 +39,9 @@ export const products: Product[] = [
     aesthetic: "Minimal",
     storeUrl: "https://thekoreanfashion.com",
     pinUrl: "https://www.pinterest.com/pin/716635359503131636/",
+    description:
+      "Oversized silhouette with a clean mock neckline and raglan sleeves. Smooth jersey texture in a uniform matte finish — a quiet, elevated everyday layer.",
+    sizes: ["S", "M", "L", "XL"],
   },
   {
     id: "3",
@@ -44,6 +52,9 @@ export const products: Product[] = [
     aesthetic: "Minimal",
     storeUrl: "https://eg.hm.com",
     pinUrl: "https://www.pinterest.com/pin/716635359503131639/",
+    description:
+      "Fine knit with a wide boat neckline, long sleeves, and narrow ribbing at the cuffs and hem. Simple, considered, and endlessly wearable.",
+    sizes: ["XS", "S", "M", "L", "XL", "XXL"],
   },
   {
     id: "4",
@@ -54,6 +65,9 @@ export const products: Product[] = [
     aesthetic: "Minimal",
     storeUrl: "https://damsonmadder.com",
     pinUrl: "https://www.pinterest.com/pin/716635359503131644/",
+    description:
+      "Oversized, boxy fit with signature grosgrain embroidered branding and contrast overlocking detail. An elevated daily basic with a quiet confidence.",
+    sizes: ["6", "8", "10", "12", "14", "16"],
   },
   {
     id: "5",
@@ -64,6 +78,9 @@ export const products: Product[] = [
     aesthetic: "Minimal",
     storeUrl: "https://wconcept.com",
     pinUrl: "https://www.pinterest.com/pin/716635359503131600/",
+    description:
+      "A versatile half-tee that can be styled two ways. Clean lines, premium fabric, and understated Seoul-ful design. Pairs back to everything.",
+    sizes: ["XS", "S", "M", "L"],
   },
   {
     id: "6",
@@ -74,6 +91,9 @@ export const products: Product[] = [
     aesthetic: "Minimal",
     storeUrl: "https://damsonmadder.com/products/button-through-hood-blue",
     pinUrl: "https://www.pinterest.com/pin/716635359503131564/",
+    description:
+      "A hooded layer with button-through detail and a relaxed, enveloping silhouette. Functional and considered — the kind of piece you reach for without thinking.",
+    sizes: ["6", "8", "10", "12", "14"],
   },
 
   // ── Romantic ─────────────────────────────────────────────────────────────
@@ -86,6 +106,9 @@ export const products: Product[] = [
     aesthetic: "Romantic",
     storeUrl: "https://www.instagram.com/p/DY0BTL0jctl/",
     pinUrl: "https://www.pinterest.com/pin/716635359503132136/",
+    description:
+      "The lace flower abaya in soft pink — delicate floral lace detail over a full-length silhouette. Available in multiple colours. Effortlessly modest and unmistakably romantic.",
+    sizes: ["XS", "S", "M", "L", "XL"],
   },
   {
     id: "8",
@@ -96,6 +119,9 @@ export const products: Product[] = [
     aesthetic: "Romantic",
     storeUrl: "https://princessace.com",
     pinUrl: "https://www.pinterest.com/pin/AY7hqFa9IR_uXKM1HpAv7a08Ui4T9TGfFHT8FAIjehT6nyLgNXM_LtgyKd8CrcMHxE25yugOr4lMmFu69gkEx_4/",
+    description:
+      "A-line mesh maxi skirt in a botanical print. Polyester-spandex blend with a slight stretch waistband. Floor-grazing length with airy, garden-party movement.",
+    sizes: ["S", "M", "L"],
   },
   {
     id: "9",
@@ -106,6 +132,9 @@ export const products: Product[] = [
     aesthetic: "Romantic",
     storeUrl: "#",
     pinUrl: "https://www.pinterest.com/pin/716635359503131920/",
+    description:
+      "A beautiful long skirt in deep green with a floral print. Full-length coverage, soft fabric, and a silhouette that moves. The kind of piece you want but haven't found yet.",
+    sizes: ["XS", "S", "M", "L"],
   },
   {
     id: "10",
@@ -116,6 +145,9 @@ export const products: Product[] = [
     aesthetic: "Romantic",
     storeUrl: "https://thefoxshop.co",
     pinUrl: "https://www.pinterest.com/pin/716635359503131633/",
+    description:
+      "100% cotton pointelle knit with a round neck and lace trim detail at the hem. Delicate stitch texture, long sleeves, and a lightweight feel — a romantic everyday staple.",
+    sizes: ["XS", "S", "M", "L", "XL"],
   },
   {
     id: "11",
@@ -126,6 +158,9 @@ export const products: Product[] = [
     aesthetic: "Romantic",
     storeUrl: "https://boden.com",
     pinUrl: "https://www.pinterest.com/pin/716635359503131585/",
+    description:
+      "Bold, romantic jewel tones brought together in a head-over-heels moment. Rich colour, considered silhouette, and the kind of look that makes a room pause.",
+    sizes: ["6", "8", "10", "12", "14", "16", "18"],
   },
   {
     id: "12",
@@ -136,6 +171,9 @@ export const products: Product[] = [
     aesthetic: "Romantic",
     storeUrl: "https://lazyoaf.com",
     pinUrl: "https://www.pinterest.com/pin/716635359503131637/",
+    description:
+      "Soft, semi-sheer green jersey hoodie with ruffle trim at the cuff and hem in pink. Playful, feminine, and completely singular. Here for the frill of it.",
+    sizes: ["6", "8", "10", "12", "14"],
   },
 
   // ── Streetwear ───────────────────────────────────────────────────────────
@@ -148,6 +186,9 @@ export const products: Product[] = [
     aesthetic: "Streetwear",
     storeUrl: "https://litlookzstudio.com",
     pinUrl: "https://www.pinterest.com/pin/716635359503131509/",
+    description:
+      "Y2K cyber-inspired zip-up turtleneck cardigan. Bold construction, techy details, and a silhouette that owns the room. Modesty and edge — no compromise.",
+    sizes: ["XS", "S", "M", "L", "XL"],
   },
   {
     id: "14",
@@ -158,6 +199,9 @@ export const products: Product[] = [
     aesthetic: "Streetwear",
     storeUrl: "https://wconcept.com",
     pinUrl: "https://www.pinterest.com/pin/716635359503131592/",
+    description:
+      "Long parachute skirt with string detail and a full, floor-length silhouette. Lightweight, utilitarian fabric with an effortless street-to-occasion range.",
+    sizes: ["XS", "S", "M", "L"],
   },
   {
     id: "15",
@@ -168,6 +212,9 @@ export const products: Product[] = [
     aesthetic: "Streetwear",
     storeUrl: "https://urbanoutfitters.com",
     pinUrl: "https://www.pinterest.com/pin/AVPjx-M1ZcXohU2j0wzTwBliPCxPQTkmYqP_ydVUaC2uoVKse71LeZ8yPjdpa3mBSp642kWoa0eqjq_Kq1Q3owg/",
+    description:
+      "Loose, trapeze-fit tee in a lightweight cotton-poly blend. Wide boatneck wearable on- or off-shoulder, drop-shoulder sleeves, and a draped high-low hem. Easy, oversized coverage.",
+    sizes: ["XS", "S", "M", "L", "XL"],
   },
   {
     id: "16",
@@ -178,6 +225,9 @@ export const products: Product[] = [
     aesthetic: "Streetwear",
     storeUrl: "https://projectisr.com",
     pinUrl: "https://www.pinterest.com/pin/716635359503131652/",
+    description:
+      "Deconstructed striped long-sleeve tee with a Henley neckline, pleated panelling, and curved seam detailing. 75% polyester, 15% cupro. Oversized, experimental, premium.",
+    sizes: ["XS", "S", "M", "L"],
   },
   {
     id: "17",
@@ -188,6 +238,9 @@ export const products: Product[] = [
     aesthetic: "Streetwear",
     storeUrl: "https://cosmoslay.com",
     pinUrl: "https://www.pinterest.com/pin/AWPvB_S_pN80rrX1Ea5GNNf_cwPF5CiHQIuB2E3AcOiYVfFNyuKT776ZRTeNlxfuh-dQB4T4PH0tp6RhNjLwCRM/",
+    description:
+      "A-line punk skirt in an asymmetric patchwork plaid. PVC-finish fabric, grey tones, and a silhouette that makes a statement. Waist 68–93 cm, length 72 cm.",
+    sizes: ["XS / S", "M / L", "XL"],
   },
   {
     id: "18",
@@ -198,6 +251,9 @@ export const products: Product[] = [
     aesthetic: "Streetwear",
     storeUrl: "#",
     pinUrl: "https://www.pinterest.com/pin/716635359503131945/",
+    description:
+      "2000s beach aesthetic — softly edited tones, effortless coordination, and a nostalgic ease. Modest without trying. The kind of set you live in.",
+    sizes: ["XS", "S", "M", "L"],
   },
 
   // ── Classic ──────────────────────────────────────────────────────────────
@@ -210,6 +266,9 @@ export const products: Product[] = [
     aesthetic: "Classic",
     storeUrl: "https://freepeople.com",
     pinUrl: "https://www.pinterest.com/pin/716635359503131883/",
+    description:
+      "Mid-rise flannel maxi skirt in a warm plaid. Full-length, slightly relaxed fit — the kind of autumn piece that earns its keep season after season.",
+    sizes: ["XS", "S", "M", "L", "XL"],
   },
   {
     id: "20",
@@ -220,6 +279,9 @@ export const products: Product[] = [
     aesthetic: "Classic",
     storeUrl: "https://wconcept.com",
     pinUrl: "https://www.pinterest.com/pin/716635359503131618/",
+    description:
+      "60% wool, 40% rayon check skirt from MONOCHROME. Vintage-style front buttons, back elastic, and a soft multi-coloured yarn blend. Dry clean only. One size (XS–M).",
+    sizes: ["One Size"],
   },
   {
     id: "21",
@@ -230,6 +292,9 @@ export const products: Product[] = [
     aesthetic: "Classic",
     storeUrl: "https://belchic.shop",
     pinUrl: "https://www.pinterest.com/pin/716635359503132111/",
+    description:
+      "Vintage-inspired dark red loose jacket with a detachable design. Rich colour, relaxed structure, and the kind of outerwear that completes rather than competes.",
+    sizes: ["S", "M", "L", "XL"],
   },
   {
     id: "22",
@@ -240,6 +305,9 @@ export const products: Product[] = [
     aesthetic: "Classic",
     storeUrl: "https://shopee.co.id",
     pinUrl: "https://www.pinterest.com/pin/716635359503131570/",
+    description:
+      "The Leona jacket in a bright, clean lemon. Structured silhouette, a colour that lifts any outfit, and the kind of statement that works with everything underneath.",
+    sizes: ["S", "M", "L"],
   },
   {
     id: "23",
@@ -250,6 +318,9 @@ export const products: Product[] = [
     aesthetic: "Classic",
     storeUrl: "https://staud.clothing",
     pinUrl: "https://www.pinterest.com/pin/716635359503131581/",
+    description:
+      "From Staud's Pre-Fall 2025 collection. Refined, editorial, and deeply considered — the kind of piece that earns a permanent place in the wardrobe.",
+    sizes: ["XS", "S", "M", "L"],
   },
   {
     id: "24",
@@ -260,6 +331,9 @@ export const products: Product[] = [
     aesthetic: "Classic",
     storeUrl: "https://www.instagram.com/p/Dc_0xuLEcBe/",
     pinUrl: "https://www.pinterest.com/pin/716635359503132114/",
+    description:
+      "Khaki asymmetrical pants set for autumn. The co-ord you have been waiting for — earthy tones, relaxed cut, and a silhouette that works from morning to evening.",
+    sizes: ["XS", "S", "M", "L", "XL"],
   },
 
   // ── Casual ───────────────────────────────────────────────────────────────
@@ -272,6 +346,9 @@ export const products: Product[] = [
     aesthetic: "Casual",
     storeUrl: "https://aliexpress.com",
     pinUrl: "https://www.pinterest.com/pin/716635359503132141/",
+    description:
+      "Coffee-toned T-shirt and half-body skirt two-piece. Pile collar, long sleeve, and a warm earthy palette — an easy, effortless everyday set.",
+    sizes: ["S", "M", "L", "XL"],
   },
   {
     id: "26",
@@ -282,6 +359,9 @@ export const products: Product[] = [
     aesthetic: "Casual",
     storeUrl: "https://garmentory.com",
     pinUrl: "https://www.pinterest.com/pin/716635359503131642/",
+    description:
+      "KkCo boxy long-sleeve in black and white with a magenta contrast collar. Side slits, stepped hem, and a quietly experimental LA-made quality.",
+    sizes: ["XS", "S", "M", "L"],
   },
   {
     id: "27",
@@ -292,16 +372,22 @@ export const products: Product[] = [
     aesthetic: "Casual",
     storeUrl: "https://freepeople.com",
     pinUrl: "https://www.pinterest.com/pin/716635359503131631/",
+    description:
+      "Soft, easy-wearing striped tee from We The Free. Relaxed fit, all-day comfort, and a lived-in stripe that never dates. The kind of top that goes with everything.",
+    sizes: ["XS", "S", "M", "L", "XL"],
   },
   {
     id: "28",
-    title: "Blusa Jenny Café — Oversized Tie Top",
+    title: "Jenny Café — Oversized Tie-Front Top",
     store: "Serge Basics",
     price: "$48",
     image: PIN("97/d3/c9/97d3c9be8078f8eb5cdca36343cea0fc.jpg"),
     aesthetic: "Casual",
     storeUrl: "https://sergebasics.com",
     pinUrl: "https://www.pinterest.com/pin/716635359503131645/",
+    description:
+      "Oversized long-sleeve top in café brown with front tie detail. 100% cotton. Loose and relaxed with just enough structure — effortless modest dressing.",
+    sizes: ["S", "M", "L"],
   },
   {
     id: "29",
@@ -312,6 +398,9 @@ export const products: Product[] = [
     aesthetic: "Casual",
     storeUrl: "https://jennah-boutique.com",
     pinUrl: "https://www.pinterest.com/pin/716635359503131535/",
+    description:
+      "Asymmetrical 100% cotton shirt with interior and exterior ties. Buttons, structured Jennah pad on the sleeve, and a silhouette that shapes itself to you. Available in two lengths.",
+    sizes: ["Size 1 (36–42)", "Size 2 (44–48)"],
   },
   {
     id: "30",
@@ -322,6 +411,9 @@ export const products: Product[] = [
     aesthetic: "Casual",
     storeUrl: "https://shein.com",
     pinUrl: "https://www.pinterest.com/pin/716635359503131588/",
+    description:
+      "Round neck long-sleeve top with contrast-colour polka dots. Light, easy, and endlessly mixable — a simple everyday piece at an accessible price.",
+    sizes: ["XS", "S", "M", "L", "XL", "XXL"],
   },
 ];
 

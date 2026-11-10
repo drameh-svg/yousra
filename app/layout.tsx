@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { SessionProvider } from "@/components/session-provider";
 import { Nav } from "@/components/nav";
 import "./globals.css";
 
@@ -29,8 +30,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={inter.variable}>
       <body className="antialiased font-sans bg-[#FAF8F5] text-stone-900">
-        <Nav />
-        {children}
+        <SessionProvider><Nav />{children}</SessionProvider>
       </body>
     </html>
   );

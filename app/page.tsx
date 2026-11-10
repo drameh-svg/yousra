@@ -1,13 +1,20 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Search, X } from "lucide-react";
+import Link from "next/link";
 import { ProductCard } from "@/components/product-card";
 import { products, aesthetics, type Aesthetic } from "@/lib/products";
+import { readPrefs } from "@/lib/use-prefs";
 
 export default function Home() {
   const [query, setQuery] = useState("");
   const [active, setActive] = useState<Aesthetic | null>(null);
+  const [showOnboardingBanner, setShowOnboardingBanner] = useState(false);
+
+  useEffect(() => {
+    setShowOnboardingBanner(!readPrefs().onboardingDone);
+  }, []);
 
   const filtered = useMemo(() => {
     return products.filter((p) => {
@@ -24,6 +31,28 @@ export default function Home() {
 
   return (
     <main style={{ minHeight: "100vh", background: "var(--bg)" }}>
+
+      {/* ── Onboarding banner ── */}
+      {showOnboardingBanner && (
+        <div style={{
+          background: "#352D27", padding: "12px 20px",
+          display: "flex", alignItems: "center", justifyContent: "center", gap: "16px", flexWrap: "wrap",
+        }}>
+          <p style={{ fontSize: "13px", color: "rgba(245,245,245,0.85)", margin: 0 }}>
+            Personalise your feed — tell Yousra what you love.
+          </p>
+          <div style={{ display: "flex", gap: "10px" }}>
+            <Link href="/onboarding"
+              style={{ background: "#DCFCFF", color: "#352D27", fontSize: "12px", fontWeight: 700, padding: "6px 16px", borderRadius: "999px", textDecoration: "none" }}>
+              Get started
+            </Link>
+            <button onClick={() => setShowOnboardingBanner(false)}
+              style={{ background: "none", border: "none", color: "rgba(245,245,245,0.6)", cursor: "pointer", fontSize: "12px" }}>
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── Hero tagline ── */}
       <div style={{ textAlign: "center", padding: "32px 16px 0" }}>

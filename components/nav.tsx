@@ -11,6 +11,12 @@ const links = [
   { href: "/profile", label: "Profile" },
 ];
 
+const footerLinks = [
+  { href: "/search", label: "Search" },
+  { href: "/about", label: "About" },
+  { href: "/contact", label: "Contact" },
+];
+
 export function Nav() {
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -68,6 +74,18 @@ export function Nav() {
               </Link>
             ))}
           </nav>
+
+          {/* Desktop footer links */}
+          <div style={{ display: "flex", gap: "16px", fontSize: "12px" }} className="hidden md:flex">
+            {footerLinks.map((l) => (
+              <Link key={l.href} href={l.href}
+                style={{ textDecoration: "none", color: "#637180", transition: "color 0.15s" }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = "#352D27")}
+                onMouseLeave={(e) => (e.currentTarget.style.color = "#637180")}>
+                {l.label}
+              </Link>
+            ))}
+          </div>
 
           {/* Desktop icons */}
           <div style={{ display: "flex", gap: "4px" }} className="hidden md:flex">

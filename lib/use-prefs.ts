@@ -13,6 +13,7 @@ export interface Prefs {
   budget: string;
   brands: string[];
   onboardingDone: boolean;
+  styleVotes: {id:string;like:boolean}[];
 }
 
 const DEFAULT: Prefs = {
@@ -24,6 +25,7 @@ const DEFAULT: Prefs = {
   budget: "",
   brands: [],
   onboardingDone: false,
+  styleVotes: [],
 };
 
 export function readPrefs(): Prefs {
@@ -47,7 +49,7 @@ export function usePrefs() {
   const [prefs, setPrefs] = useState<Prefs>(DEFAULT);
 
   useEffect(() => {
-    setPrefs(readPrefs());
+    queueMicrotask(()=>setPrefs(readPrefs()));
     const sync = () => setPrefs(readPrefs());
     window.addEventListener("yousra_prefs_change", sync);
     window.addEventListener("storage", sync);

@@ -12,7 +12,7 @@ export function SessionProvider({children}:{children:ReactNode}){
  useEffect(()=>{const current=collections.find(c=>!c.system&&c.name==='Saved');if(current||!savedCreation.current)createdSaved.current=current||null;},[collections]);
  const reloadLibrary=useCallback(async()=>{const [c,r]=await Promise.all([api<{collections:Collection[]}>('/collections'),api<{reactions:Record<string,Reaction>}>('/reactions')]);setCollections(c.collections);setReactions(r.reactions);setRevision(r=>r+1);},[]);
  const reload=useCallback(async()=>{
-  try{const me=await api<{user:Account;profile:Profile}>('/me');setUser(me.user);setProfile(me.profile);setError('');if(me.profile.onboarded)await reloadLibrary();}
+  try{const me=await api<{user:Account;profile:Profile}>('/me');setUser(me.user);setProfile(me.profile);setError('');await reloadLibrary();}
   catch(e){
    // 401 → unauthenticated (expected); 503/5xx with Supabase-not-configured message → treat as unauthenticated
    // so pages that don't require auth (For You, Explore, etc.) still render instead of showing an error.

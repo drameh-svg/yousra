@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, ChevronRight, X } from "lucide-react";
+import {useSession} from '@/components/session-provider';
+import {api} from '@/lib/api';
+import { nextStylePiece, type StyleVote } from "@/lib/style-discovery";
 import { writePrefs } from "@/lib/use-prefs";
 import { BRAND_LIST } from "@/lib/brands";
 import { products } from "@/lib/products";
@@ -17,22 +20,27 @@ const AESTHETICS: { label: Aesthetic; image: string; description: string }[] = [
   { label: "Casual", image: products.find((p) => p.id === "28")!.image, description: "Relaxed, everyday, easy" },
 ];
 
-const QUIZ_PRODUCTS = [1, 2, 7, 8, 13, 14, 19, 20, 25, 26, 4, 10, 16, 22, 29]
-  .map((id) => products.find((p) => p.id === String(id))!);
+const MAX_CHOICES = 5;
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const session=useSession();
+  const [saving,setSaving]=useState(false),[saveError,setSaveError]=useState('');
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
   // Step 1
   const [selectedAesthetics, setSelectedAesthetics] = useState<Aesthetic[]>([]);
 
   // Step 2
-  const [quizIndex, setQuizIndex] = useState(0);
-  const [yesCount, setYesCount] = useState(0);
-
-  // Step 3
+  const [votes,setVotes]=useState<StyleVote[]>([]);
+  const [coverage,setCoverage]=useState<"Conservative"|"Moderate"|"Relaxed">("Moderate");
+  const [budget,setBudget]=useState("");
+  const [brandQuery,setBrandQuery]=useState("");
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
+  const piece=nextStylePiece(selectedAesthetics,votes);
+  const visibleBrands=BRAND_LIST.filter(b=>!selectedBrands.includes(b)&&b.toLowerCase().includes(brandQuery.toLowerCase())).slice(0,6);
+
+
 
   function toggleAesthetic(a: Aesthetic) {
     setSelectedAesthetics((prev) =>
@@ -43,30 +51,36 @@ export default function OnboardingPage() {
   function toggleBrand(b: string) {
     setSelectedBrands((prev) => {
       if (prev.includes(b)) return prev.filter((x) => x !== b);
-      if (prev.length >= 10) return prev;
+      if (prev.length >= 3) return prev;
       return [...prev, b];
     });
   }
 
-  function answerQuiz(yes: boolean) {
-    if (yes) setYesCount((n) => n + 1);
-    if (quizIndex + 1 >= QUIZ_PRODUCTS.length) {
-      setStep(3);
-    } else {
-      setQuizIndex((i) => i + 1);
-    }
+  function answerQuiz(like:boolean){
+    if(!piece)return;
+    const next=[...votes,{id:piece.id,like}];setVotes(next);
+    if(next.length>=MAX_CHOICES||!nextStylePiece(selectedAesthetics,next))setStep(3);
   }
-
-  function finish() {
-    const modesty =
-      yesCount >= 10 ? "Relaxed" : yesCount >= 5 ? "Moderate" : "Conservative";
-    writePrefs({
-      aesthetics: selectedAesthetics,
-      modesty,
-      brands: selectedBrands,
-      onboardingDone: true,
-    });
-    router.push("/");
+  async function finish(){
+    if(saving||session.loading)return;
+    setSaving(true);setSaveError('');
+    try{
+    if(session.user&&session.profile){
+      const preferences=structuredClone(session.profile.preferences);
+      preferences.styles=selectedAesthetics.map(s=>s.toLowerCase());preferences.budgetMax=budget?Number(budget):null;
+      for(const [category,rule] of Object.entries(preferences.rules)){
+        rule.sleeves=coverage==='Conservative'?'long':coverage==='Moderate'?'elbow':'any';
+        rule.neckline=coverage==='Conservative'?'high':coverage==='Moderate'?'medium':'any';
+        rule.fit=coverage==='Conservative'?'loose':'any';
+        rule.length=['dress','skirt'].includes(category)?coverage==='Conservative'?'maxi':coverage==='Moderate'?'midi':'any':'any';
+        rule.transparency=coverage==='Relaxed'?'any':'opaque';rule.slits=coverage==='Conservative'?'none':'any';rule.cutouts=coverage==='Relaxed'?'any':'none';
+      }
+      await api('/profile','PUT',{preferences,styleVotes:votes,completeOnboarding:true});
+      await session.reload();
+    }
+    writePrefs({aesthetics:selectedAesthetics,styleVotes:votes,modesty:coverage,budget,brands:selectedBrands,onboardingDone:true});
+    router.push('/');
+    }catch(e){setSaveError(e instanceof Error?e.message:'Could not save your preferences.')}finally{setSaving(false)}
   }
 
   return (
@@ -82,9 +96,9 @@ export default function OnboardingPage() {
 
       {/* Skip */}
       <div style={{ display: "flex", justifyContent: "flex-end", padding: "16px 24px" }}>
-        <button onClick={() => { writePrefs({ onboardingDone: true }); router.push("/"); }}
+        <button onClick={() => { if(step===2)setStep(3);else finish(); }}
           style={{ background: "none", border: "none", cursor: "pointer", fontSize: "13px", color: "#637180", display: "flex", alignItems: "center", gap: "5px" }}>
-          Skip <X size={13} />
+          {step===2?"Skip examples":"Set up later"} <X size={13} />
         </button>
       </div>
 
@@ -96,7 +110,7 @@ export default function OnboardingPage() {
             <StepHeader
               step={1} total={3}
               title="What's your style?"
-              subtitle="Select all the aesthetics that feel like you. We'll use these to shape what you see."
+              subtitle="Pick the styles you love. Next, just a few choices to fine-tune your feed."
             />
             <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "12px", width: "100%", marginBottom: "32px" }}
                  className="aesthetic-grid">
@@ -133,7 +147,7 @@ export default function OnboardingPage() {
               })}
             </div>
             <NavRow
-              onNext={() => setStep(2)}
+              onNext={() => {setVotes([]);setStep(2)}}
               nextDisabled={selectedAesthetics.length === 0}
               nextLabel="Continue"
             />
@@ -141,25 +155,25 @@ export default function OnboardingPage() {
         )}
 
         {/* ── Step 2: Modesty quiz ── */}
-        {step === 2 && (
+        {step === 2 && piece && (
           <>
             <StepHeader
               step={2} total={3}
-              title="Would you wear this in public?"
-              subtitle={`${quizIndex + 1} of ${QUIZ_PRODUCTS.length} · Your answers shape what Yousra shows you. No right or wrong.`}
+              title="Is this your style?"
+              subtitle={`${votes.length + 1} of ${MAX_CHOICES} quick choices · Each answer helps choose the next piece. Coverage comes separately.`}
             />
-            <div style={{ width: "100%", maxWidth: "400px", marginBottom: "32px" }}>
+            <div style={{ width: "100%", maxWidth: "280px", marginBottom: "32px" }}>
               {/* Quiz image */}
               <div style={{ borderRadius: "16px", overflow: "hidden", marginBottom: "24px", position: "relative" }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={QUIZ_PRODUCTS[quizIndex].image} alt="Would you wear this?"
+                <img src={piece.image} alt={piece.title}
                   style={{ width: "100%", aspectRatio: "3/4", objectFit: "cover", display: "block" }} />
                 {/* progress dots */}
                 <div style={{ position: "absolute", bottom: "14px", left: "50%", transform: "translateX(-50%)", display: "flex", gap: "5px" }}>
-                  {QUIZ_PRODUCTS.map((_, i) => (
+                  {Array.from({length:MAX_CHOICES}, (_, i) => (
                     <div key={i} style={{
-                      width: i === quizIndex ? "18px" : "6px", height: "6px",
-                      borderRadius: "999px", background: i <= quizIndex ? "#F5F5F5" : "rgba(245,245,245,0.35)",
+                      width: i === votes.length ? "18px" : "6px", height: "6px",
+                      borderRadius: "999px", background: i <= votes.length ? "#F5F5F5" : "rgba(245,245,245,0.35)",
                       transition: "all 0.2s",
                     }} />
                   ))}
@@ -174,14 +188,14 @@ export default function OnboardingPage() {
                     background: "#fff", border: "1px solid rgba(53,45,39,0.15)",
                     color: "#352D27", cursor: "pointer",
                   }}>
-                  No
+                  Not for me
                 </button>
                 <button onClick={() => answerQuiz(true)}
                   style={{
                     flex: 1, padding: "14px", borderRadius: "12px", fontSize: "15px", fontWeight: 600,
                     background: "#352D27", border: "none", color: "#F5F5F5", cursor: "pointer",
                   }}>
-                  Yes
+                  Love this
                 </button>
               </div>
             </div>
@@ -193,13 +207,28 @@ export default function OnboardingPage() {
           <>
             <StepHeader
               step={3} total={3}
-              title="Brands you love?"
-              subtitle={`Select up to 10. We'll find modest alternatives and pieces with a similar feel. ${selectedBrands.length}/10 selected.`}
+              title="Make it comfortable."
+              subtitle="Choose your coverage and optional budget. You can refine these in your profile anytime."
             />
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", justifyContent: "center", width: "100%", maxWidth: "680px", marginBottom: "32px" }}>
-              {BRAND_LIST.map((brand) => {
+            <div style={{width:'100%',maxWidth:520,marginBottom:24,display:'grid',gap:16}}>
+              <label style={{fontSize:13}}>Coverage preference
+                <select value={coverage} onChange={e=>setCoverage(e.target.value as typeof coverage)} style={{display:'block',width:'100%',padding:12,marginTop:6,border:'1px solid var(--border)',borderRadius:10,background:'white'}}>
+                  <option value="Conservative">More coverage</option><option value="Moderate">Balanced coverage</option><option value="Relaxed">Flexible coverage</option>
+                </select>
+              </label>
+              <label style={{fontSize:13}}>Maximum price in USD (optional)
+                <input type="number" min="1" max="100000" value={budget} onChange={e=>setBudget(e.target.value)} placeholder="No limit" style={{display:'block',width:'100%',padding:12,marginTop:6,border:'1px solid var(--border)',borderRadius:10,background:'white'}}/>
+              </label>
+              <p style={{fontSize:12,color:'var(--muted)',lineHeight:1.6}}>More coverage: long sleeves, high necklines, loose fits and maxi skirts or dresses. Balanced: elbow-length sleeves, medium necklines and midi lengths. Flexible: no preset coverage limits. These presets can be refined in Profile preferences.</p>
+              <details><summary style={{cursor:'pointer',fontSize:13}}>Brands you love? Optional · up to 3</summary>
+              <label style={{display:'block',fontSize:12,marginTop:12}}>Find a brand
+                <input type="search" value={brandQuery} onChange={e=>setBrandQuery(e.target.value)} placeholder="Search brands" style={{display:'block',width:'100%',padding:10,marginTop:6,border:'1px solid var(--border)',borderRadius:10,background:'white'}}/>
+              </label>
+              <div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:12}}>{selectedBrands.map(b=><button key={b} aria-label={`Remove ${b}`} onClick={()=>toggleBrand(b)} style={{borderRadius:999,padding:'8px 12px',background:'#352D27',color:'white',border:'none'}}>{b} ×</button>)}</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "12px" }}>
+              {visibleBrands.map((brand) => {
                 const active = selectedBrands.includes(brand);
-                const full = selectedBrands.length >= 10 && !active;
+                const full = selectedBrands.length >= 3 && !active;
                 return (
                   <button key={brand} onClick={() => toggleBrand(brand)}
                     disabled={full}
@@ -219,11 +248,15 @@ export default function OnboardingPage() {
                 );
               })}
             </div>
+              {!visibleBrands.length?<p style={{fontSize:12,color:'var(--muted)'}}>No more matching brands.</p>:null}
+              </details>
+            </div>
+            {saveError?<p role="alert">{saveError}</p>:null}
             <NavRow
-              onNext={finish}
-              nextDisabled={false}
-              nextLabel="Finish — take me to Yousra"
-              onBack={() => { setStep(2); setQuizIndex(0); setYesCount(0); }}
+              onNext={()=>{void finish()}}
+              nextDisabled={saving||session.loading}
+              nextLabel={saving?"Saving…":"Finish — take me to Yousra"}
+              onBack={() => setStep(1)}
             />
           </>
         )}

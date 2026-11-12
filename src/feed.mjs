@@ -1,3 +1,4 @@
+import {curatedProducts} from './curated.mjs';
 import {store} from './store.mjs';
 import {discover,analyze} from './discovery.mjs';
 import {rankProducts,preferenceWeights} from './rank.mjs';
@@ -6,7 +7,7 @@ import {config,hash,id,now,HttpError} from './util.mjs';
 
 export const feedInteractions=lib=>Object.entries(lib.reactions).map(([productId,r])=>({...r,productId,saved:lib.collections.some(c=>!c.system&&c.productIds.includes(productId))}));
 async function products(){const all=await store.list('product');return config().demo?[...all,...sampleProducts]:all;}
-function eligible(all,p,lib,filters){return rankProducts(config().demo?all:all.filter(x=>x.image&&x.productPage!==false),p,feedInteractions(lib),onboarding,filters,'',true,all);}
+function eligible(all,p,lib,filters){return rankProducts(config().demo?all:all.filter(x=>x.image&&x.productPage!==false),p,feedInteractions(lib),onboarding,filters,'',true,[...all,...curatedProducts]);}
 export function feedQuery(profile,interactions,all,round,filters={}) {
   const prefs=profile.preferences,weights=preferenceWeights(profile,interactions,all,onboarding);
   const best=(prefix,fallback)=>Object.entries(weights).filter(([k,v])=>k.startsWith(prefix)&&v>0).sort((a,b)=>b[1]-a[1]).map(([k])=>k.slice(prefix.length))[0]||fallback;

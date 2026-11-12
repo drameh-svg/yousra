@@ -1,3 +1,4 @@
+import {curatedProducts} from './curated.mjs';
 import {contentModel,cosine,diversify} from './recommend.mjs';
 import { modestyMatch } from './preferences.mjs';
 
@@ -6,6 +7,7 @@ export function features(p) { return [...(p.styles||[]).map(x=>`style:${x}`),...
 export function preferenceWeights(profile, interactions, products, swipePhotos) {
   const weights={};
   const add=(key,v)=>weights[key]=(weights[key]||0)+v;
+  for(const vote of profile.styleVotes||[]){const item=curatedProducts.find(p=>p.id===vote.id);if(item)for(const feature of features(item))add(feature,vote.like?1:-0.7);}
   for (const s of profile.preferences.styles) add(`style:${s}`,2);
   for (const c of profile.preferences.colors) add(`color:${c}`,1.5);
   for (const swipe of profile.swipes||[]) { const p=swipePhotos.find(x=>x.id===swipe.id); if(p) features(p).forEach(f=>add(f,swipe.like?0.6:-0.2)); }

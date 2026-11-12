@@ -1,6 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import {useEffect,useState} from "react";
+import {useSession} from "@/components/session-provider";
+import {api,type ApiProduct} from "@/lib/api";
+import {toCard} from "@/lib/catalog";
 import { Bookmark } from "lucide-react";
 import { useSavedIds } from "@/lib/use-saved";
 import { products } from "@/lib/products";
@@ -8,7 +12,11 @@ import { ProductCard } from "@/components/product-card";
 
 export default function SavedPage() {
   const ids = useSavedIds();
-  const savedProducts = products.filter((p) => ids.includes(p.id));
+  const session=useSession();
+  const [remote,setRemote]=useState<ApiProduct[]>([]),[error,setError]=useState('');
+  const collection=session.collections.find(c=>!c.system&&c.name==='Saved');
+  useEffect(()=>{let active=true;if(!session.user||!collection){queueMicrotask(()=>{if(active)setRemote([])});return()=>{active=false}}void api<{items:ApiProduct[]}>(`/collections/${collection.id}`).then(d=>{if(active){setRemote(d.items);setError('')}}).catch(e=>{if(active)setError(e.message)});return()=>{active=false}},[session.user,collection]);
+  const savedProducts = session.user?remote.map(toCard):products.filter((p) => ids.includes(p.id));
 
   return (
     <main style={{ minHeight: "100vh", background: "var(--bg)", padding: "32px 20px 80px" }}>
@@ -24,7 +32,8 @@ export default function SavedPage() {
           Your saved pieces are here whenever you&apos;re ready to come back.
         </p>
 
-        {savedProducts.length === 0 ? (
+        {error?<p role="alert">{error}</p>:null}
+        {session.loading?<p>Loading saved pieces…</p>:savedProducts.length === 0 ? (
           <div style={{ textAlign: "center", padding: "80px 20px" }}>
             <Bookmark size={36} style={{ color: "rgba(53,45,39,0.15)", marginBottom: "16px" }} />
             <p style={{ fontSize: "15px", color: "#637180", marginBottom: "8px" }}>

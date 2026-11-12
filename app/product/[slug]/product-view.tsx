@@ -6,13 +6,18 @@ import { ArrowLeft, Bookmark, ExternalLink, ChevronDown, ChevronLeft, ChevronRig
 import type { Product } from "@/lib/products";
 import { ProductCard } from "@/components/product-card";
 
+import {useProductActions} from '@/lib/use-product-actions';
+
 interface Props {
   product: Product;
   similar: Product[];
 }
 
 export function ProductView({ product, similar }: Props) {
-  const [saved, setSaved] = useState(false);
+  const {saved,toggleSaved,loading}=useProductActions(product.id);
+  const [saveError,setSaveError]=useState('');
+  const [saving,setSaving]=useState(false);
+  async function save(){if(saving||loading)return;setSaving(true);setSaveError('');try{await toggleSaved()}catch(e){setSaveError(e instanceof Error?e.message:'Could not save this piece.')}finally{setSaving(false)}}
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [carouselOffset, setCarouselOffset] = useState(0);
@@ -69,7 +74,7 @@ export function ProductView({ product, similar }: Props) {
 
               {/* Bookmark on image */}
               <button
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setSaved((s) => !s); }}
+                aria-label={saved?"Unsave":"Save"} aria-pressed={saved} disabled={saving||loading} onClick={(e) => { e.preventDefault(); e.stopPropagation(); void save(); }}
                 style={{
                   position: "absolute", top: "14px", right: "14px",
                   background: "rgba(245,245,245,0.9)", backdropFilter: "blur(6px)",
@@ -84,13 +89,14 @@ export function ProductView({ product, similar }: Props) {
           {/* RIGHT — details (sticky) */}
           <div style={{ position: "sticky", top: "76px" }}>
 
+            {saveError?<p role="alert">{saveError}</p>:null}
             {/* Brand row */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                 <span style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#352D27" }}>
                   {product.store}
                 </span>
-                <button onClick={() => setSaved((s) => !s)}
+                <button onClick={() => void save()}
                   style={{ background: "none", border: "none", cursor: "pointer", display: "flex", padding: 0 }}>
                   <Bookmark size={14} style={{ fill: saved ? "#352D27" : "none", stroke: saved ? "#352D27" : "#637180" }} />
                 </button>
@@ -167,7 +173,7 @@ export function ProductView({ product, similar }: Props) {
               }}>
                 Purchase Now
               </a>
-              <button onClick={() => setSaved((s) => !s)} style={{
+              <button onClick={() => void save()} style={{
                 flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
                 background: saved ? "#DCFCFF" : "#fff",
                 border: "1px solid rgba(53,45,39,0.2)", borderRadius: "10px",

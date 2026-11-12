@@ -212,3 +212,30 @@ test('blank, zero placeholder and currency-less retailer prices remain unknown',
   assert.equal(extractProduct(html,'https://retailer.example/products/dress').price,null);
  }
 });
+
+
+test('curated retailer items can be liked and saved before onboarding, and stay private',async()=>{
+ const a=await client(),b=await client();
+ await a('/auth/signup','POST',{email:'curated-owner@example.com',password:'curated-test-password'});
+ await b('/auth/signup','POST',{email:'curated-other@example.com',password:'curated-test-password'});
+ for(const id of ['1','3','25'])assert.equal((await a(`/products/${id}/reaction`,'POST',{action:'like'})).status,200);
+ const c=(await a('/collections','POST',{name:'Saved'})).data.collection;
+ for(const productId of ['1','3','25'])assert.equal((await a('/collections/'+c.id,'PATCH',{productId})).status,200);
+ const result=await a('/collections/'+c.id);assert.equal(result.data.items.length,3);
+ assert.equal((await b('/collections/'+c.id)).status,404);
+ assert.equal((await a('/products/not-a-product/reaction','POST',{action:'like'})).status,404);
+ assert.equal((await a('/collections/'+c.id,'PATCH',{productId:'injected-product',url:'https://attacker.example'})).status,404);
+ assert.equal((await a('/products/3/reaction','POST',{action:'clear'})).data.reaction.liked,false);
+ assert.equal((await a('/collections/'+c.id,'PATCH',{productId:'3',remove:true})).data.collections.find(x=>x.id===c.id).productIds.includes('3'),false);
+});
+
+test('short adaptive onboarding saves explicit preferences and rejects invalid votes',async()=>{
+ const a=await client();await a('/auth/signup','POST',{email:'adaptive@example.com',password:'adaptive-test-password'});
+ assert.equal((await a('/profile','PUT',{styleVotes:[{id:'1',like:true},{id:'1',like:false}],preferences:defaultPreferences(),completeOnboarding:true})).status,400);
+ assert.equal((await a('/profile','PUT',{styleVotes:[{id:'untrusted',like:true}],preferences:defaultPreferences(),completeOnboarding:true})).status,400);
+ const preferences=defaultPreferences();preferences.styles=['casual'];preferences.budgetMax=55;
+ const result=await a('/profile','PUT',{styleVotes:[{id:'25',like:true},{id:'26',like:false}],preferences,completeOnboarding:true});
+ assert.equal(result.status,200);assert.equal(result.data.profile.onboarded,true);
+ const me=(await a('/me')).data;assert.equal(me.profile.styleVotes.length,2);assert.equal(me.profile.preferences.budgetMax,55);assert.deepEqual(me.profile.preferences.styles,['casual']);
+ assert.equal((await a('/feed')).status,200);
+});

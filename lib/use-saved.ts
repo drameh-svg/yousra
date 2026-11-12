@@ -24,7 +24,7 @@ export function useSaved(productId: string) {
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    setSaved(readIds().includes(productId));
+    queueMicrotask(()=>setSaved(readIds().includes(productId)));
     const sync = () => setSaved(readIds().includes(productId));
     window.addEventListener(EV, sync);
     window.addEventListener("storage", sync);
@@ -51,7 +51,7 @@ export function useSavedIds() {
   const [ids, setIds] = useState<string[]>([]);
 
   useEffect(() => {
-    setIds(readIds());
+    queueMicrotask(()=>setIds(readIds()));
     const sync = () => setIds(readIds());
     window.addEventListener(EV, sync);
     window.addEventListener("storage", sync);

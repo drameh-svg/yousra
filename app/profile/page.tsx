@@ -23,7 +23,7 @@ export default function ProfilePage() {
   const [form, setForm] = useState({ ...prefs });
   const [saved, setSavedState] = useState(false);
 
-  useEffect(() => { setForm({ ...prefs }); }, [prefs]);
+  useEffect(() => { queueMicrotask(()=>setForm({ ...prefs })); }, [prefs]);
 
   function toggle<K extends keyof Prefs>(key: K, value: string) {
     setForm((f) => {

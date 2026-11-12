@@ -13,7 +13,7 @@ Mutations require `Content-Type: application/json`. Browser requests must have t
 | POST | `/auth/signout` | `{}` |
 | GET | `/me` | `{user,profile,localTest}` |
 | GET | `/onboarding` | `{photos,required:15}`; requires account |
-| PUT | `/profile` | `{preferences,swipes?,completeOnboarding?}` |
+| PUT | `/profile` | `{preferences,swipes?,styleVotes?,completeOnboarding?}` |
 | GET | `/feed` | Create a personalized feed session; accepts filters and `limit` |
 | GET | `/feed/:feedId` | Read the next stable page with `offset` and `limit`; owner only |
 | POST | `/feed/:feedId/advance` | `{}`; discover/analyze the next batch, returning the requested page |
@@ -144,3 +144,39 @@ Use returned `image`/`images` paths. For real products these point to the authen
 ## Active repository frontend
 
 The Next.js UI from `drameh-svg/yousra` now connects through `lib/api.ts` and `SessionProvider`. It runs on the same origin as the backend. `/`, `/explore`, `/saved`, `/profile`, `/search`, `/search/results`, `/category/:slug` and `/products/:id` are working routes. `/product/:slug` is an alias for the existing product ID route. Bookmarks use a regular private collection named Saved; the heart continues to manage the system Likes collection. The frontend does not use the repository's hard-coded sample listings as real inventory.
+
+
+### Short adaptive onboarding (current frontend)
+The current onboarding sends `PUT /api/profile` with explicit `preferences`,
+`styleVotes: [{id, like}]` (zero to five unique curated product IDs), and
+`completeOnboarding: true`. Zero choices supports skipping the optional examples.
+The original fifteen-photo `swipes` contract remains supported for the legacy UI.
+Style answers influence taste; coverage comes from explicit preferences.
+Curated product IDs are recognized for account-owned reactions and collections.
+Guests keep bookmarks and reactions in browser storage; these do not automatically
+migrate to an account. Live product IDs continue to use backend product pages.
+
+Validation on 2026-11-11: 20 backend tests, lint and production build passed.
+Browser checks covered five unique style choices, style-specific feed results,
+optional searchable brands, guest save/detail consistency, account save/like
+persistence, account onboarding persistence, and desktop/mobile grid widths.
+Live Supabase create/read/update/delete and Auth settings checks passed; no fresh
+Serper or Gemini inference calls were made during this validation.
+
+
+### Homepage live discovery
+The homepage now reads `/api/feed` and appends paginated products, then calls
+`POST /api/feed/:id/advance` automatically as the scroll sentinel approaches.
+It uses account-owned preferences, reactions and saved references. Style pills
+create a filtered feed; search submits to the live search-results route.
+Account creation and the shorter optional-example onboarding precede live discovery.
+The homepage no longer renders the curated reference array as its product feed.
+Existing provider daily/total caps are unchanged; warnings and cached products stay
+visible when fresh discovery is paused. A manual More pieces button provides a
+fallback when automatic observation is unavailable.
+
+Validation: production build, lint and 20 backend tests passed. Browser scrolling
+expanded 24 to 62 products with simulated external providers and the real feed API,
+without duplicate IDs or moving earlier cards. One real-provider verification used
+3 Serper calls and 2 Gemini calls, grew eligible matches from 28 to 37, returned no
+warnings, and removed its temporary feed record afterward.

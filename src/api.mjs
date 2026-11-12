@@ -1,3 +1,4 @@
+import {curatedProducts} from './curated.mjs';
 import {createFeed,readFeed,feedView,advanceFeed} from './feed.mjs';
 import {productImage} from './media.mjs';
 import { signIn,signOut,user,refresh,assertEnvironment } from './auth.mjs';
@@ -11,7 +12,7 @@ import { body,config,hash,host,HttpError,id,json,now,safeUrl,text } from './util
 const libraryInitial = () => ({collections:[{id:'likes',name:'Likes',productIds:[],system:true}],reactions:{}});
 async function library(uid) {await store.create('library',uid,{...libraryInitial(),version:0},uid);return await store.get('library',uid,uid);}
 async function profile(uid) {await store.create('profile',uid,{id:uid,preferences:defaultPreferences(),swipes:[],onboarded:false,createdAt:now(),version:0},uid);return await store.get('profile',uid,uid);}
-async function catalog() {const real=await store.list('product');return config().demo?[...real,...sampleProducts]:real;}
+async function catalog() {const real=await store.list('product');return [...real,...curatedProducts,...(config().demo?sampleProducts:[])];}
 function interactions(lib) {return Object.entries(lib.reactions).map(([productId,r])=>({...r,productId,saved:lib.collections.some(c=>!c.system&&c.productIds.includes(productId))}));}
 function shopUrl(p) {
   let rules={};try{rules=JSON.parse(process.env.AFFILIATE_RULES||'{}');}catch{}
@@ -24,7 +25,7 @@ function publicProduct(p) {
   return {...p,price:Number.isFinite(p.price)&&p.price>0&&p.currency?p.price:null,originalImage:p.image,image:p.image&&!p.demo?`/api/products/${p.id}/image`:p.image,images:p.demo?p.images:(p.images||[]).map((_,i)=>`/api/products/${p.id}/image?index=${i}`),affiliate:shop.affiliate,shopPath:`/api/products/${p.id}/outbound`,sourceUrl:p.url};
 }
 function pages(items,url) {const offset=Math.max(0,Number(url.searchParams.get('offset'))||0),limit=Math.max(1,Math.min(48,Number(url.searchParams.get('limit'))||24));return {items:items.slice(offset,offset+limit).map(publicProduct),total:items.length,nextOffset:offset+limit<items.length?offset+limit:null};}
-async function product(key) {return await store.get('product',key)||(config().demo?sampleProducts.find(x=>x.id===key):null);}
+async function product(key) {return await store.get('product',key)||curatedProducts.find(x=>x.id===key)||(config().demo?sampleProducts.find(x=>x.id===key):null);}
 async function searchView(job,p,lib,url) {
   const all=await catalog(),subset=all.filter(x=>job.productIds.includes(x.id)&&(config().demo||x.image));
   return {...pages(rankProducts(subset,{...p,preferences:job.preferences},interactions(lib),onboarding,job.filters,job.query,false,all),url),jobId:job.id,status:job.status,phase:job.phase,processed:job.processed||0,discovered:job.productIds.length,canAdvance:!['complete','error'].includes(job.status),warnings:job.warnings||[],demo:job.demo};
@@ -93,12 +94,17 @@ export async function handle(request, context={}) {
           if(!Array.isArray(data.swipes)||data.swipes.length!==15||new Set(data.swipes.map(s=>s.id)).size!==15||data.swipes.some(s=>!onboarding.some(p=>p.id===s.id)||typeof s.like!=='boolean'))throw new HttpError(400,'Complete all 15 unique swipes');
           p.swipes=data.swipes.map(s=>({id:s.id,like:s.like}));
         }
-        if(data.completeOnboarding){if(p.swipes.length!==15||!data.preferences)throw new HttpError(400,'Swipes and questionnaire required');p.onboarded=true;}
+        if(data.styleVotes!==undefined){
+          if(!Array.isArray(data.styleVotes)||data.styleVotes.length>5||new Set(data.styleVotes.map(v=>v.id)).size!==data.styleVotes.length||data.styleVotes.some(v=>!curatedProducts.some(x=>x.id===v.id)||typeof v.like!=='boolean'))throw new HttpError(400,'Use up to five unique style choices');
+          p.styleVotes=data.styleVotes.map(v=>({id:v.id,like:v.like}));
+        }
+        if(data.completeOnboarding){if((data.styleVotes===undefined&&p.swipes.length!==15)||!data.preferences)throw new HttpError(400,'Style choices and preferences required');p.onboarded=true;}
         return p;
       });return json({profile:updated});
     }
     const p=await profile(u.id),lib=await library(u.id);
-    if(!p.onboarded)throw new HttpError(409,'Complete onboarding first');
+    const libraryAction=path.startsWith('/api/collections')||path==='/api/reactions'||/^\/api\/products\/[\w-]+\/reaction$/.test(path);
+    if(!p.onboarded&&!libraryAction)throw new HttpError(409,'Complete onboarding first');
     if(path==='/api/feed'&&method==='GET') {
       const session=await createFeed(p,lib,filtersFrom(Object.fromEntries(url.searchParams)));
       const view=await feedView(session,p,lib,url);return json({...view,items:view.items.map(publicProduct)});

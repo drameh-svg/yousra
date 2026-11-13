@@ -284,3 +284,10 @@ test('live search retains cached matches when the new discovery batch is empty',
   assert.equal(done.status,'complete');assert.ok(done.items.some(p=>p.id==='cached-blue-skirt'));
  }finally{globalThis.fetch=originalFetch;if(oldKey===undefined)delete process.env.SERPER_API_KEY;else process.env.SERPER_API_KEY=oldKey;}
 });
+
+
+test('an explicit single title color cannot be overridden by inferred colors during search',()=>{
+ const p=garment('white',{title:'White maxi dress',colors:['blue','white']});
+ assert.equal(rankProducts([p],{preferences:defaultPreferences(),swipes:[]},[],[],{color:'blue'}).length,0);
+ assert.equal(rankProducts([p],{preferences:defaultPreferences(),swipes:[]},[],[],{color:'white'}).length,1);
+});

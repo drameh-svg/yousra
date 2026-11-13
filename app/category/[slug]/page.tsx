@@ -14,7 +14,7 @@ export default async function CategoryPage({ params }: Props) {
   const cat = categories.find((c) => c.slug === slug);
   const label = cat?.label ?? slug.charAt(0).toUpperCase() + slug.slice(1);
 
-  const canonical:Record<string,string>={dresses:'dress',skirts:'skirt',tops:'top',pants:'pants',outerwear:'outerwear'};
+  const canonical:Record<string,string>={dress:'dress',skirt:'skirt',top:'top',dresses:'dress',skirts:'skirt',tops:'top',pants:'pants',outerwear:'outerwear'};
   return (
     <main style={{ minHeight: "100vh", background: "var(--bg)", padding: "28px 20px 80px" }}>
       <div style={{ maxWidth: "1200px", margin: "0 auto" }}>

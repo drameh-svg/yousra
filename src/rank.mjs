@@ -36,7 +36,11 @@ export function rankProducts(products, profile, interactions, swipes, filters={}
     const max=filters.maxPrice??prefs.budgetMax;
     if(max!=null && (p.price===null||p.price>max||p.currency!=='USD')) return [];
     if(filters.minPrice!=null && (p.price===null||p.price<filters.minPrice||p.currency!=='USD')) return [];
-    if(filters.color&&!p.colors?.includes(filters.color)) return [];
+    if(filters.color){
+      const titleWords=new Set(tokens(p.title));
+      const explicitColors=['black','white','blue','navy','green','pink','red','brown','beige','cream','gray','purple','yellow'].filter(c=>titleWords.has(c));
+      if(!p.colors?.includes(filters.color)||(explicitColors.length===1&&!explicitColors.includes(filters.color)))return [];
+    }
     if(filters.style&&!p.styles?.includes(filters.style)) return [];
     if(filters.size&&!p.sizes?.map(x=>x.toLowerCase()).includes(filters.size)) return [];
     if(!filters.size&&prefs.sizes?.length&&p.sizes?.length&&!p.sizes.some(x=>prefs.sizes.includes(String(x).toLowerCase())))return [];

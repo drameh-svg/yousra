@@ -3,21 +3,13 @@
 import { useState } from "react";
 import { Search } from "lucide-react";
 import Link from "next/link";
-import { ProductCard } from "@/components/product-card";
-import { products } from "@/lib/products";
+import {useRouter} from "next/navigation";
 
 const SUGGESTED = ["Dresses", "Skirts", "Tops", "Activewear", "Swimwear", "Occasionwear"];
 
 export default function SearchPage() {
+  const router=useRouter();
   const [query, setQuery] = useState("");
-
-  const results = query.length > 1
-    ? products.filter((p) =>
-        p.title.toLowerCase().includes(query.toLowerCase()) ||
-        p.store.toLowerCase().includes(query.toLowerCase()) ||
-        p.aesthetic.toLowerCase().includes(query.toLowerCase())
-      )
-    : [];
 
   return (
     <main style={{ minHeight: "100vh", background: "var(--bg)", padding: "40px 20px 80px" }}>
@@ -33,21 +25,24 @@ export default function SearchPage() {
         </p>
 
         {/* Search input */}
-        <div style={{ position: "relative", marginBottom: "20px" }}>
+        <form onSubmit={e=>{e.preventDefault();if(query.trim())router.push("/search/results?q="+encodeURIComponent(query.trim()))}} style={{ position: "relative", marginBottom: "20px" }}>
           <Search size={15} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: "#637180", pointerEvents: "none" }} />
           <input
+            aria-label="Search clothing"
+            maxLength={300}
             autoFocus
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder='Try "black maxi skirt" or "wedding guest dress"'
             style={{
-              width: "100%", height: "44px", paddingLeft: "42px", paddingRight: "16px",
+              width: "100%", height: "44px", paddingLeft: "42px", paddingRight: "85px",
               border: "1px solid rgba(53,45,39,0.15)", borderRadius: "12px",
               background: "#fff", fontSize: "14px", color: "#352D27", outline: "none",
             }}
           />
-        </div>
+          <button type="submit" style={{position:"absolute",right:10,top:7,padding:"7px 12px",border:0,borderRadius:8,background:"#352D27",color:"white",cursor:"pointer"}}>Search</button>
+        </form>
 
         {/* Suggested categories */}
         {!query && (
@@ -70,23 +65,6 @@ export default function SearchPage() {
           </div>
         )}
 
-        {/* Results */}
-        {query.length > 1 && (
-          <>
-            <p style={{ fontSize: "12px", color: "#637180", marginBottom: "16px" }}>
-              {results.length} result{results.length !== 1 ? "s" : ""} for &ldquo;{query}&rdquo;
-            </p>
-            {results.length === 0 ? (
-              <p style={{ fontSize: "14px", color: "#637180" }}>
-                Nothing quite right yet. Try removing a word or exploring a category.
-              </p>
-            ) : (
-              <div className="masonry" style={{ marginTop: "8px" }}>
-                {results.map((p) => <ProductCard key={p.id} product={p} />)}
-              </div>
-            )}
-          </>
-        )}
       </div>
     </main>
   );

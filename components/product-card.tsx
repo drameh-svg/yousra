@@ -3,6 +3,7 @@ import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Bookmark, ExternalLink, Heart, X } from 'lucide-react';
+import {isProductUrl} from '@/src/product-url.mjs';
 import { useProductActions } from '@/lib/use-product-actions';
 
 // Minimal interface accepted by this card — compatible with both the local
@@ -16,7 +17,7 @@ export interface CardProduct {
   aesthetic: string;
   storeUrl: string;
   pinUrl?: string;
-  raw?: { demo?: boolean; match?: { uncertain?: boolean } | null; affiliate?: boolean };
+  raw?: { sourceUrl?:string;shopAvailable?:boolean;demo?: boolean; match?: { uncertain?: boolean } | null; affiliate?: boolean };
 }
 
 export function ProductCard({ product }: { product: CardProduct }) {
@@ -25,6 +26,7 @@ export function ProductCard({ product }: { product: CardProduct }) {
   const [error, setError] = useState('');
   const [imgError, setImgError] = useState(false);
 
+  const shopAvailable=product.raw?.shopAvailable!==false&&isProductUrl(product.raw?.sourceUrl||product.storeUrl);
   const detailPath=product.raw?`/products/${product.id}`:`/product/${product.id}`;
   async function action(run: () => Promise<void>) {
     if (busy) return;
@@ -42,8 +44,8 @@ export function ProductCard({ product }: { product: CardProduct }) {
             : <div className="absolute inset-0 flex items-center justify-center bg-stone-100"><span className="text-xs text-stone-400 text-center px-4">Photo unavailable from retailer</span></div>}
           <span className="absolute inset-0 bg-stone-900/0 group-hover:bg-stone-900/10 transition-colors duration-300" />
         </Link>
-        <a href={product.storeUrl} target="_blank" rel="noopener noreferrer" className="absolute bottom-4 left-1/2 -translate-x-1/2 inline-flex max-w-[calc(100%-24px)] items-center gap-1.5 rounded-full bg-white px-3 py-2 text-[11px] font-medium text-stone-900 shadow sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 transition-opacity" aria-label={`Shop at ${product.store}`} onClick={e => e.stopPropagation()}>
-          <span className="truncate">Shop at {product.store}</span><ExternalLink size={11} className="shrink-0" />
+        <a href={shopAvailable?product.storeUrl:`/search/results?q=${encodeURIComponent(product.title)}`} target={shopAvailable?"_blank":undefined} rel="noopener noreferrer" className="absolute bottom-4 left-1/2 -translate-x-1/2 inline-flex max-w-[calc(100%-24px)] items-center gap-1.5 rounded-full bg-white px-3 py-2 text-[11px] font-medium text-stone-900 shadow sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 transition-opacity" aria-label={shopAvailable?`Shop at ${product.store}`:`Find current listings for ${product.title}`} onClick={e => e.stopPropagation()}>
+          <span className="truncate">{shopAvailable?`Shop at ${product.store}`:"Find current listings"}</span><ExternalLink size={11} className="shrink-0" />
         </a>
         <button disabled={busy||loading} onClick={e => { e.preventDefault(); void action(() => toggleSaved()); }} aria-label={saved ? 'Unsave' : 'Save'} aria-pressed={saved} className="absolute top-3 right-3 p-1.5 rounded-full bg-white/80 backdrop-blur-sm shadow-sm hover:bg-white transition-colors disabled:opacity-50">
           <Bookmark size={14} className={saved ? 'fill-stone-900 text-stone-900' : 'text-stone-400'} />

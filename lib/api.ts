@@ -13,7 +13,7 @@ export interface ApiProduct {
  image:string|null;images:string[];styles:string[];colors:string[];category:Category|'unknown';sizes:string[];
  shippingUS:'yes'|'no'|'unknown';availability:string;attributes:Partial<Rule>;analysisSource:string;
  evidence?:Record<string,{confidence:number;reason:string}>;confidence:number;demo?:boolean;affiliate?:boolean;
- shopPath:string;sourceUrl:string;pageFetchedAt?:string;analyzedAt?:string;
+ shopPath:string;sourceUrl:string;shopAvailable?:boolean;pageFetchedAt?:string;analyzedAt?:string;
  match?:{uncertain:boolean;reasons:string[]};
 }
 export interface Results {

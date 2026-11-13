@@ -6,7 +6,7 @@ import {onboarding,sampleProducts} from './seed.mjs';
 import {config,hash,id,now,HttpError} from './util.mjs';
 
 export const feedInteractions=lib=>Object.entries(lib.reactions).map(([productId,r])=>({...r,productId,saved:lib.collections.some(c=>!c.system&&c.productIds.includes(productId))}));
-async function products(){const all=await store.list('product');return config().demo?[...all,...sampleProducts]:all;}
+async function products(){const all=await store.list('product');return config().demo?[...all,...sampleProducts]:all.filter(p=>!p.demo);}
 function eligible(all,p,lib,filters){return rankProducts(config().demo?all:all.filter(x=>x.image&&x.productPage!==false),p,feedInteractions(lib),onboarding,filters,'',true,[...all,...curatedProducts]);}
 export function feedQuery(profile,interactions,all,round,filters={}) {
   const prefs=profile.preferences,weights=preferenceWeights(profile,interactions,all,onboarding);

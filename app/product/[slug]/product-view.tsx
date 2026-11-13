@@ -1,19 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useState,useEffect } from "react";
 import Link from "next/link";
 import { ArrowLeft, Bookmark, ExternalLink, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import type { Product } from "@/lib/products";
-import { ProductCard } from "@/components/product-card";
+import {api,type ApiProduct} from "@/lib/api";
+import {toCard} from "@/lib/catalog";
+import {useSession} from "@/components/session-provider";
+import {isProductUrl} from "@/src/product-url.mjs";
+import { ProductCard,type CardProduct } from "@/components/product-card";
 
 import {useProductActions} from '@/lib/use-product-actions';
 
 interface Props {
   product: Product;
-  similar: Product[];
+  similar: CardProduct[];
 }
 
-export function ProductView({ product, similar }: Props) {
+export function ProductView({ product, similar:initialSimilar }: Props) {
+  const session=useSession();
+  const [similar,setSimilar]=useState<CardProduct[]>(initialSimilar);
+  useEffect(()=>{let active=true;if(session.user&&session.profile?.onboarded)void api<{similar:ApiProduct[]}>(`/products/${product.id}`).then(d=>{if(active)setSimilar(d.similar.map(toCard))}).catch(()=>{});return()=>{active=false}},[product.id,session.user,session.profile?.onboarded]);
+  const shopAvailable=isProductUrl(product.storeUrl);
+  const shopHref=shopAvailable?`/api/products/${product.id}/outbound?surface=detail`:`/search/results?q=${encodeURIComponent(product.title)}`;
   const {saved,toggleSaved,loading}=useProductActions(product.id);
   const [saveError,setSaveError]=useState('');
   const [saving,setSaving]=useState(false);
@@ -67,7 +76,7 @@ export function ProductView({ product, similar }: Props) {
             </div>
 
             {/* Main image — links to seller */}
-            <a href={product.storeUrl} target="_blank" rel="noopener noreferrer"
+            <a href={shopHref} target="_blank" rel="noopener noreferrer"
               style={{ display: "block", flex: 1, borderRadius: "14px", overflow: "hidden", position: "relative", textDecoration: "none" }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={product.image} alt={product.title} style={{ width: "100%", height: "auto", display: "block" }} />
@@ -165,13 +174,13 @@ export function ProductView({ product, similar }: Props) {
 
             {/* Action row */}
             <div style={{ display: "flex", gap: "10px", marginBottom: "14px" }}>
-              <a href={product.storeUrl} target="_blank" rel="noopener noreferrer" style={{
+              <a href={shopHref} target="_blank" rel="noopener noreferrer" style={{
                 flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
                 background: "#352D27", color: "#F5F5F5",
                 fontSize: "13px", fontWeight: 600, padding: "11px 12px",
                 borderRadius: "10px", textDecoration: "none", gap: "6px",
               }}>
-                Purchase Now
+                {shopAvailable?"Purchase Now":"Find current listings"}
               </a>
               <button onClick={() => void save()} style={{
                 flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
@@ -188,7 +197,7 @@ export function ProductView({ product, similar }: Props) {
             {/* Attribution */}
             <p style={{ fontSize: "11px", color: "#637180", marginBottom: "16px", lineHeight: 1.6 }}>
               Sourced from{" "}
-              <a href={product.storeUrl} target="_blank" rel="noopener noreferrer"
+              <a href={shopHref} target="_blank" rel="noopener noreferrer"
                 style={{ color: "#352D27", fontWeight: 600, textDecoration: "none" }}>
                 {product.store}
               </a>
@@ -196,17 +205,17 @@ export function ProductView({ product, similar }: Props) {
             </p>
 
             {/* Big CTA */}
-            <a href={product.storeUrl} target="_blank" rel="noopener noreferrer"
+            <a href={shopHref} target="_blank" rel="noopener noreferrer"
               style={{
                 display: "flex", flexDirection: "column", alignItems: "center",
                 background: "#352D27", color: "#F5F5F5",
                 padding: "18px 24px", borderRadius: "14px", textDecoration: "none",
               }}>
               <span style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "15px", fontWeight: 700 }}>
-                Shop at {product.store} <ExternalLink size={15} />
+                {shopAvailable?`Shop at ${product.store}`:"Find current listings"} <ExternalLink size={15} />
               </span>
               <span style={{ fontSize: "11px", color: "rgba(245,245,245,0.55)", marginTop: "3px" }}>
-                View &amp; purchase on the official product site
+                {shopAvailable?"View the retailer’s product page":"This reference has no verified product link"}
               </span>
             </a>
           </div>
@@ -224,7 +233,7 @@ export function ProductView({ product, similar }: Props) {
                   Similar pieces
                 </h2>
                 <p style={{ fontSize: "12px", color: "#637180" }}>
-                  More {product.aesthetic.toLowerCase()} finds from other stores
+                  Similar garments that meet your preferences
                 </p>
               </div>
               <div style={{ display: "flex", gap: "8px" }}>

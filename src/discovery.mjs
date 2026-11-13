@@ -1,3 +1,4 @@
+import {isProductUrl} from './product-url.mjs';
 import { reserve, store } from './store.mjs';
 import { external, allowedByRobots } from './network.mjs';
 import { categories, choices, filtersFrom } from './preferences.mjs';
@@ -5,7 +6,7 @@ import { hash, host, HttpError, now, safeUrl, text } from './util.mjs';
 
 export function inferAttributes(value) {
   const t=value.toLowerCase();const has=regex=>regex.test(t);
-  const category=has(/\b(dress|abaya|gown)\b/)?'dress':has(/\b(skirt)\b/)?'skirt':has(/\b(pants|trousers|jeans|leggings)\b/)?'pants':has(/\b(coat|jacket|cardigan|blazer)\b/)?'outerwear':has(/\b(top|blouse|shirt|sweater|tunic)\b/)?'top':'unknown';
+  const category=has(/\b(dress(?:es)?|abayas?|gowns?)\b/)?'dress':has(/\b(skirts?)\b/)?'skirt':has(/\b(pants|trousers|jeans|leggings)\b/)?'pants':has(/\b(coats?|jackets?|cardigans?|blazers?)\b/)?'outerwear':has(/\b(tops?|blouses?|shirts?|sweaters?|tunics?)\b/)?'top':'unknown';
   return {category,colors:['black','white','blue','navy','green','pink','red','brown','beige','cream','gray','purple','yellow'].filter(c=>new RegExp(`\\b${c}\\b`).test(t)),styles:['minimal','classic','casual','romantic','streetwear','elegant','boho','sporty'].filter(c=>t.includes(c)),
     attributes:{sleeves:has(/sleeveless|strapless/)?'sleeveless':has(/long[ -]sleeve/)?'long':has(/short[ -]sleeve/)?'short':has(/elbow|3\/4|three[ -]quarter/)?'elbow':'unknown',neckline:has(/high[ -]neck|turtleneck/)?'high':has(/v[ -]neck|plunging/)?'open':'unknown',length:has(/\bmaxi\b|full[ -]length/)?'maxi':has(/\bmidi\b/)?'midi':has(/\bmini\b/)?'mini':'unknown',fit:has(/wide[ -]leg/)?'wide':has(/loose|oversized|relaxed/)?'loose':has(/bodycon|slim|skinny|fitted/)?'fitted':'unknown',transparency:has(/\bopaque\b|non[ -]sheer/)?'opaque':has(/\bsheer\b|see[ -]through|transparent fabric/)?'sheer':'unknown',slits:has(/no slits?|without slits?/)?'none':has(/\bslits?\b|thigh[ -]split/)?'present':'unknown',cutouts:has(/no cut[ -]?outs?|without cut[ -]?outs?/)?'none':has(/cut[ -]?outs?/)?'present':'unknown'}};
 }
@@ -42,10 +43,9 @@ export function discoveryCandidates(payloads) {
     let url=safeUrl(p.link);
     if(!url||/(^|\.)(google|youtube|pinterest|facebook|instagram|tiktok)\.(com|co\.uk)$/.test(host(url)))continue;
     // Images must belong to an individual retailer product, not an editorial/gallery/category page.
-    const path=new URL(url).pathname;
     const image=safeUrl(p.imageUrl||p.thumbnail||'');
-    const productPath=/\/(products?|p|pd|item|ip|dp|goods|[\w-]+-p)\//i.test(path)||/\.(html|aspx)$/i.test(path);
-    if(data.images&&!productPath)continue;
+    const productPath=isProductUrl(url);
+    if(!productPath)continue;
     const canonical=new URL(url);canonical.hash='';
     for(const key of [...canonical.searchParams.keys()])if(/^utm_|^(gclid|fbclid|srsltid)$/i.test(key))canonical.searchParams.delete(key);
     url=canonical.href;
@@ -88,7 +88,8 @@ export async function analyze(product) {
         if(extracted.price===null)extracted.currency=null;
         p={...p,...Object.fromEntries(Object.entries(extracted).filter(([k,v])=>v!==null&&v!==''&&(!Array.isArray(v)||v.length))),url:response.url,pageFetchedAt:now()};
         p.image=p.images?.[0]||null;
-        if(extracted.structured)p.productPage=true;
+        p.productPage=isProductUrl(response.url);
+        if(!isProductUrl(response.url))p.fetchNote='Retailer redirected away from the individual product page';
       } else p.fetchNote=`Retailer returned ${response.status}`;
     } else p.fetchNote='Retailer extraction skipped: robots.txt unavailable or disallowed';
   } catch {p.fetchNote='Retailer page unavailable; search metadata only';}

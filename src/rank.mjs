@@ -1,3 +1,4 @@
+import {isProductUrl} from './product-url.mjs';
 import {curatedProducts} from './curated.mjs';
 import {contentModel,cosine,diversify} from './recommend.mjs';
 import { modestyMatch } from './preferences.mjs';
@@ -27,7 +28,7 @@ export function rankProducts(products, profile, interactions, swipes, filters={}
   const model=contentModel(context),byId=new Map(context.map(x=>[x.id,x]));
   const signals=interactions.map(i=>({p:byId.get(i.productId),weight:i.disliked?-4:(i.liked?4:0)+(i.saved?3:0)+Math.min(i.clicks||0,3)*0.3})).filter(x=>x.p&&x.weight);
   const ranked=products.flatMap(p=>{
-    if(p.excluded || p.productPage===false || p.availability==='out_of_stock')return [];
+    if((!p.demo&&p.url&&!isProductUrl(p.url))||p.excluded || p.productPage===false || p.availability==='out_of_stock')return [];
     if(!p.demo&&p.url&&p.productPage!==true&&/\/(collections|categories|category|search|cat|browse)(\/|$)|\/shop\/gender/i.test(new URL(p.url).pathname))return [];
     if(feed&&hidden.has(p.id)) return [];
     if(prefs.excludedBrands.some(b=>[p.brand,p.store].some(x=>String(x).toLowerCase().includes(b)))) return [];
@@ -42,7 +43,7 @@ export function rankProducts(products, profile, interactions, swipes, filters={}
     if(filters.shipping==='confirmed'&&p.shippingUS!=='yes') return [];
     if(p.shippingUS==='no') return [];
     const modest=modestyMatch(p,prefs); if(!modest.pass) return [];
-    const words=tokens(`${p.title} ${p.description} ${p.category} ${(p.styles||[]).join(' ')} ${(p.colors||[]).join(' ')}`);
+    const words=tokens(`${p.title} ${p.description} ${p.store||''} ${p.brand||''} ${p.category} ${(p.styles||[]).join(' ')} ${(p.colors||[]).join(' ')}`);
     const lexical=queryTokens.length?queryTokens.filter(t=>words.includes(t)||words.includes(t.replace(/s$/,''))).length/queryTokens.length:0;
     if(queryTokens.length&&lexical===0) return [];
     const taste=features(p).reduce((sum,f)=>sum+(weights[f]||0),0)/Math.sqrt(Math.max(1,features(p).length));
@@ -55,6 +56,19 @@ export function rankProducts(products, profile, interactions, swipes, filters={}
   return feed?diversify(ranked,model):ranked;
 }
 export function similarProducts(target, products) {
-  const base=new Set(features(target));
-  return products.filter(p=>p.id!==target.id).map(p=>({...p,similarity:features(p).filter(x=>base.has(x)).length+(p.category===target.category?3:0)})).sort((a,b)=>b.similarity-a.similarity).slice(0,8);
+ if(!target.category||target.category==='unknown')return [];
+ const model=contentModel([target,...products]),base=model.vector(target);
+ const known=p=>new Set(features(p).filter(x=>!x.startsWith('category:')&&!x.endsWith(':unknown')));
+ const targetFacts=known(target), seen=new Set([target.id]),urls=new Set([target.url].filter(Boolean));
+ const shape=/\b(linen|cotton|denim|lace|satin|knit|pleated|pencil|floral|striped|wide|wrap|tiered|a-line)\b/g;
+ const details=p=>new Set(`${p.title} ${p.description||''}`.toLowerCase().match(shape)||[]);
+ const baseDetails=details(target);
+ return products.filter(p=>p.id!==target.id&&p.category===target.category).map(p=>{
+   const overlap=[...known(p)].filter(x=>targetFacts.has(x)).length;
+   const materialShape=[...details(p)].filter(x=>baseDetails.has(x)).length;
+   const content=cosine(base,model.vector(p));
+   return {...p,similarity:content*6+overlap*0.5+materialShape*1.5,related:content>=0.18&&(overlap>0||materialShape>0||content>=0.35)};
+ }).filter(p=>p.related).sort((a,b)=>b.similarity-a.similarity||a.id.localeCompare(b.id)).filter(p=>{
+   if(seen.has(p.id)||(p.url&&urls.has(p.url)))return false;seen.add(p.id);if(p.url)urls.add(p.url);return true;
+ }).slice(0,8);
 }

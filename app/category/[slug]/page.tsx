@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { ProductCard } from "@/components/product-card";
-import { products } from "@/lib/products";
+import {DiscoveryGrid} from "@/components/discovery-grid";
 import { categories } from "@/lib/explore-data";
 
 interface Props { params: Promise<{ slug: string }> }
@@ -15,12 +14,7 @@ export default async function CategoryPage({ params }: Props) {
   const cat = categories.find((c) => c.slug === slug);
   const label = cat?.label ?? slug.charAt(0).toUpperCase() + slug.slice(1);
 
-  // Filter by rough keyword match; in production this comes from a real catalog
-  const matched = products.filter((p) =>
-    p.title.toLowerCase().includes(slug.replace(/-/g, " ")) ||
-    p.aesthetic !== undefined
-  ).slice(0, 20);
-
+  const canonical:Record<string,string>={dresses:'dress',skirts:'skirt',tops:'top',pants:'pants',outerwear:'outerwear'};
   return (
     <main style={{ minHeight: "100vh", background: "var(--bg)", padding: "28px 20px 80px" }}>
       <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
@@ -37,9 +31,7 @@ export default async function CategoryPage({ params }: Props) {
         <p style={{ fontSize: "13px", color: "#637180", marginBottom: "28px" }}>
           Explore {label.toLowerCase()} across styles and stores.
         </p>
-        <div className="masonry">
-          {matched.map((p) => <ProductCard key={p.id} product={p} />)}
-        </div>
+        <DiscoveryGrid query={canonical[slug]?'':label.toLowerCase()+' clothing'} filters={canonical[slug]?{category:canonical[slug]}:{}}/>
       </div>
     </main>
   );

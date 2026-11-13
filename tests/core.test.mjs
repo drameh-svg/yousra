@@ -4,7 +4,8 @@ import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { defaultPreferences,modestyMatch,validatePreferences } from '../src/preferences.mjs';
-import { rankProducts } from '../src/rank.mjs';
+import {isProductUrl} from '../src/product-url.mjs';
+import { rankProducts,similarProducts } from '../src/rank.mjs';
 import { publicAddress,robotsAllowed } from '../src/network.mjs';
 import { extractProduct,queryFilters,discoveryCandidates,inferAttributes } from '../src/discovery.mjs';
 import { handle } from '../src/api.mjs';
@@ -74,6 +75,7 @@ test('end-to-end: account gating, onboarding, collections, search, click trackin
  assert.equal((await a('/collections/likes','DELETE',{})).status,400);
  const search=await a('/search','POST',{query:'dress',filters:{}});assert.equal(search.status,201);assert.equal(search.data.demo,true);
  assert.ok((await a('/search/suggestions')).data.recent.includes('dress'));
+ await store.put('product',productId,{...feed.data.items[0],url:'https://retailer.example/products/sample-reference'});
  const out=await a(`/products/${productId}/outbound?surface=card`);assert.equal(out.status,302);assert.ok(out.headers.get('location').startsWith('https://'));
  const metrics=await a('/metrics');assert.equal(metrics.data.clicks,0);assert.equal(metrics.data.sampleClicks,1);
  assert.equal((await a('/admin/metrics')).status,403);
@@ -238,4 +240,47 @@ test('short adaptive onboarding saves explicit preferences and rejects invalid v
  assert.equal(result.status,200);assert.equal(result.data.profile.onboarded,true);
  const me=(await a('/me')).data;assert.equal(me.profile.styleVotes.length,2);assert.equal(me.profile.preferences.budgetMax,55);assert.deepEqual(me.profile.preferences.styles,['casual']);
  assert.equal((await a('/feed')).status,200);
+});
+
+
+test('purchase links reject retailer homepages, categories, social references and malformed URLs',()=>{
+ for(const url of ['https://example.com','https://example.com/en-us','https://example.com/collections/dresses','https://example.com/women','https://instagram.com/p/garment','javascript:alert(1)','https://example.com/search?q=dress'])assert.equal(isProductUrl(url),false,url);
+ for(const url of ['https://example.com/products/blue-skirt?variant=123','https://amazon.com/dp/B1234','https://example.com/item/123','https://hm.com/productpage.123.html'])assert.equal(isProductUrl(url),true,url);
+ assert.equal(discoveryCandidates([{shopping:[{title:'Long sleeve dress',link:'https://example.com',imageUrl:'https://example.com/a.jpg'}]}]).length,0);
+});
+test('similar products follow the clicked category, shape and fabric; unknown facts never count',()=>{
+ const skirt={...garment('skirt'),category:'skirt',title:'Blue pleated linen maxi skirt',description:'Loose pleated linen',attributes:{length:'maxi',fit:'loose'},url:'https://example.com/products/skirt'};
+ const close={...skirt,id:'close',url:'https://other.example/products/linen-skirt'};
+ const unrelated={...garment('top'),category:'top',title:'Blue linen blouse',attributes:{length:'maxi',fit:'loose'}};
+ const unknown={...garment('unknown'),category:'unknown',attributes:{length:'unknown',fit:'unknown'}};
+ const duplicate={...skirt,id:'duplicate'};
+ assert.deepEqual(similarProducts(skirt,[unrelated,unknown,duplicate,close]).map(p=>p.id),['close']);
+ assert.deepEqual(similarProducts(unknown,[skirt,close]),[]);
+ assert.equal(similarProducts(unrelated,[skirt,close]).length,0);
+});
+test('plural search categories work without silently changing budget or coverage',()=>{
+ assert.equal(queryFilters('black maxi skirts under $80',{}).category,'skirt');
+ assert.equal(queryFilters('long sleeve dresses',{}).category,'dress');
+ assert.equal(queryFilters('blue blouses',{}).category,'top');
+});
+test('retailer landing references never redirect shoppers or count as outbound clicks',async()=>{
+ const a=await client();await a('/auth/signup','POST',{email:'landing-links@example.com',password:'landing-test-password'});
+ await a('/profile','PUT',{styleVotes:[],preferences:defaultPreferences(),completeOnboarding:true});
+ const response=await a('/products/3/outbound?surface=detail');assert.equal(response.status,410);assert.equal(response.headers.get('location'),null);
+ assert.equal((await a('/metrics')).data.sampleClicks,0);
+});
+
+
+test('live search retains cached matches when the new discovery batch is empty',async()=>{
+ const oldKey=process.env.SERPER_API_KEY,originalFetch=globalThis.fetch;
+ try{
+  process.env.SERPER_API_KEY='search-empty-test';globalThis.fetch=async(input,options)=>String(input).startsWith('https://google.serper.dev/')?Response.json({}):originalFetch(input,options);
+  await store.put('product','cached-blue-skirt',{...garment('cached-blue-skirt'),title:'Blue pleated skirt',category:'skirt',url:'https://retailer.example/products/blue-skirt',image:'https://cdn.example/skirt.jpg',images:['https://cdn.example/skirt.jpg'],productPage:true,analyzedAt:new Date().toISOString()});
+  const a=await client();await a('/auth/signup','POST',{email:'cached-search@example.com',password:'cached-search-password'});
+  await a('/profile','PUT',{styleVotes:[],preferences:defaultPreferences(),completeOnboarding:true});
+  const initial=(await a('/search','POST',{query:'blue skirts'})).data;
+  assert.ok(initial.items.some(p=>p.id==='cached-blue-skirt'));
+  const done=(await a(`/search/${initial.jobId}/advance`,'POST',{})).data;
+  assert.equal(done.status,'complete');assert.ok(done.items.some(p=>p.id==='cached-blue-skirt'));
+ }finally{globalThis.fetch=originalFetch;if(oldKey===undefined)delete process.env.SERPER_API_KEY;else process.env.SERPER_API_KEY=oldKey;}
 });

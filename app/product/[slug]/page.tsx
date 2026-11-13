@@ -1,3 +1,4 @@
+import {AccountGate} from "@/components/account-gate";
 import { notFound } from "next/navigation";
 import { products } from "@/lib/products";
 import { ProductView } from "./product-view";
@@ -15,9 +16,5 @@ export default async function ProductPage({ params }: Props) {
   const product = products.find((p) => p.id === slug);
   if (!product) notFound();
 
-  const similar = products.filter(
-    (p) => p.aesthetic === product.aesthetic && p.id !== product.id,
-  );
-
-  return <ProductView product={product} similar={similar} />;
+  return <AccountGate><ProductView product={product} similar={[]} /></AccountGate>;
 }

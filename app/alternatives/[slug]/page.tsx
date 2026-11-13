@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { ProductCard } from "@/components/product-card";
-import { products } from "@/lib/products";
+import {DiscoveryGrid} from "@/components/discovery-grid";
 import { alternatives } from "@/lib/explore-data";
 
 interface Props { params: Promise<{ slug: string }> }
@@ -14,9 +13,6 @@ export default async function AlternativesPage({ params }: Props) {
   const { slug } = await params;
   const alt = alternatives.find((a) => a.slug === slug);
   const brandName = alt?.brand ?? slug.replace(/-/g, " ");
-
-  // Show all products as "alternatives" — in production this is a curated list
-  const shown = products.filter((_, i) => i % 3 !== 0).slice(0, 15);
 
   return (
     <main style={{ minHeight: "100vh", background: "var(--bg)", padding: "28px 20px 80px" }}>
@@ -37,9 +33,7 @@ export default async function AlternativesPage({ params }: Props) {
         <p style={{ fontSize: "11px", color: "#637180", marginBottom: "28px", fontStyle: "italic" }}>
           These are independent suggestions. Yousra is not affiliated with {brandName}.
         </p>
-        <div className="masonry">
-          {shown.map((p) => <ProductCard key={p.id} product={p} />)}
-        </div>
+        <DiscoveryGrid query={brandName+" inspired modest clothing"}/>
       </div>
     </main>
   );

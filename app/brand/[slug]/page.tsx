@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { ProductCard } from "@/components/product-card";
-import { products } from "@/lib/products";
+import {DiscoveryGrid} from "@/components/discovery-grid";
 import { brands } from "@/lib/explore-data";
 
 interface Props { params: Promise<{ slug: string }> }
@@ -14,11 +13,6 @@ export default async function BrandPage({ params }: Props) {
   const { slug } = await params;
   const brand = brands.find((b) => b.slug === slug);
   const name = brand?.name ?? slug.replace(/-/g, " ");
-
-  const matched = products.filter((p) =>
-    p.store.toLowerCase().replace(/\s+/g, "-").includes(slug.split("-")[0])
-  );
-  const fallback = matched.length === 0 ? products.slice(0, 6) : matched;
 
   return (
     <main style={{ minHeight: "100vh", background: "var(--bg)", padding: "28px 20px 80px" }}>
@@ -39,7 +33,7 @@ export default async function BrandPage({ params }: Props) {
                 {brand.name}
               </h1>
               <p style={{ fontSize: "13px", color: "rgba(245,245,245,0.65)", lineHeight: 1.6 }}>{brand.tagline}</p>
-              <p style={{ fontSize: "12px", color: "#DCFCFF", marginTop: "8px" }}>{brand.pieceCount} pieces on Yousra</p>
+              <p style={{ fontSize: "12px", color: "#DCFCFF", marginTop: "8px" }}>Find current pieces across stores</p>
             </div>
           </div>
         )}
@@ -50,9 +44,7 @@ export default async function BrandPage({ params }: Props) {
           </h1>
         )}
 
-        <div className="masonry">
-          {fallback.map((p) => <ProductCard key={p.id} product={p} />)}
-        </div>
+        <DiscoveryGrid query={name+" clothing"}/>
       </div>
     </main>
   );

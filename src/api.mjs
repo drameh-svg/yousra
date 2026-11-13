@@ -1,3 +1,5 @@
+import {isProductUrl} from './product-url.mjs';
+import {external,allowedByRobots} from './network.mjs';
 import {curatedProducts} from './curated.mjs';
 import {createFeed,readFeed,feedView,advanceFeed} from './feed.mjs';
 import {productImage} from './media.mjs';
@@ -22,12 +24,12 @@ function shopUrl(p) {
 }
 function publicProduct(p) {
   const shop=shopUrl(p);
-  return {...p,price:Number.isFinite(p.price)&&p.price>0&&p.currency?p.price:null,originalImage:p.image,image:p.image&&!p.demo?`/api/products/${p.id}/image`:p.image,images:p.demo?p.images:(p.images||[]).map((_,i)=>`/api/products/${p.id}/image?index=${i}`),affiliate:shop.affiliate,shopPath:`/api/products/${p.id}/outbound`,sourceUrl:p.url};
+  return {...p,price:Number.isFinite(p.price)&&p.price>0&&p.currency?p.price:null,originalImage:p.image,image:p.image&&!p.demo?`/api/products/${p.id}/image`:p.image,images:p.demo?p.images:(p.images||[]).map((_,i)=>`/api/products/${p.id}/image?index=${i}`),affiliate:shop.affiliate,shopPath:`/api/products/${p.id}/outbound`,sourceUrl:p.url,shopAvailable:isProductUrl(p.url)&&p.productPage!==false};
 }
 function pages(items,url) {const offset=Math.max(0,Number(url.searchParams.get('offset'))||0),limit=Math.max(1,Math.min(48,Number(url.searchParams.get('limit'))||24));return {items:items.slice(offset,offset+limit).map(publicProduct),total:items.length,nextOffset:offset+limit<items.length?offset+limit:null};}
 async function product(key) {return await store.get('product',key)||curatedProducts.find(x=>x.id===key)||(config().demo?sampleProducts.find(x=>x.id===key):null);}
 async function searchView(job,p,lib,url) {
-  const all=await catalog(),subset=all.filter(x=>job.productIds.includes(x.id)&&(config().demo||x.image));
+  const all=await catalog(),subset=all.filter(x=>job.productIds.includes(x.id)&&(config().demo||!x.demo&&x.image));
   return {...pages(rankProducts(subset,{...p,preferences:job.preferences},interactions(lib),onboarding,job.filters,job.query,false,all),url),jobId:job.id,status:job.status,phase:job.phase,processed:job.processed||0,discovered:job.productIds.length,canAdvance:!['complete','error'].includes(job.status),warnings:job.warnings||[],demo:job.demo};
 }
 async function advance(job,uid) {
@@ -40,22 +42,24 @@ async function advance(job,uid) {
     if(next.phase==='discovery') {
       const cacheKey=hash('images-v2:'+next.discoveryQuery.toLowerCase());
       const cache=await store.get('cache',cacheKey);
-      if(cache&&cache.expires>Date.now())next.productIds=cache.productIds;
+      if(cache&&cache.expires>Date.now())next.analysisIds=cache.productIds;
       else {
         const found=await discover(next.discoveryQuery);
         for(const p of found) {const existing=await store.get('product',p.id);await store.put('product',p.id,existing&&Date.now()-Date.parse(existing.analyzedAt||'')<86400000?existing:p);}
-        next.productIds=found.map(x=>x.id);
-        await store.put('cache',cacheKey,{productIds:next.productIds,expires:Date.now()+Number(process.env.SEARCH_TTL_HOURS||6)*3600000});
+        next.analysisIds=found.map(x=>x.id);
+        await store.put('cache',cacheKey,{productIds:next.analysisIds,expires:Date.now()+Number(process.env.SEARCH_TTL_HOURS||6)*3600000});
       }
-      next.phase='analysis';next.processed=0;next.status=next.productIds.length?'pending':'complete';
+      next.productIds=[...new Set([...next.productIds,...next.analysisIds])];
+      next.phase='analysis';next.processed=0;next.status=next.analysisIds.length?'pending':'complete';
     } else {
-      const ids=next.productIds.slice(next.processed,next.processed+2);
+      const analysisIds=next.analysisIds||next.productIds;
+      const ids=analysisIds.slice(next.processed,next.processed+2);
       const results=await Promise.allSettled(ids.map(async key=>{
         const p=await store.get('product',key); if(!p)return;
         if(!p.analyzedAt || Date.now()-Date.parse(p.analyzedAt)>86400000) await store.put('product',key,await analyze(p));
       }));
       if(results.some(r=>r.status==='rejected')) next.warnings=[...new Set([...next.warnings,'Some products could not be analyzed and remain uncertain.'])];
-      next.processed+=ids.length;next.status=next.processed>=next.productIds.length?'complete':'pending';
+      next.processed+=ids.length;next.status=next.processed>=analysisIds.length?'complete':'pending';
     }
   } catch(e) {next.status='error';next.warnings=[...next.warnings,e instanceof HttpError?e.message:'Search could not finish. Cached results are still available.'];}
   next.lockedAt=0;
@@ -73,7 +77,7 @@ export async function handle(request, context={}) {
   try {
     assertEnvironment();csrf(request);
     const url=new URL(request.url),path=url.pathname.replace(/\/$/,''),method=request.method;
-    if(path==='/api/health'&&method==='GET')return json({ok:true,authMode:config().auth,storage:config().storage,discovery:config().demo?'sample':'live',vision:!!process.env.GEMINI_API_KEY});
+    if(path==='/api/health'&&method==='GET')return json({ok:true,authMode:config().auth,storage:config().storage,discovery:config().demo?'sample':'live',vision:!!process.env.GEMINI_API_KEY,revision:process.env.VERCEL_GIT_COMMIT_SHA?.slice(0,12)||null});
     if(['/api/auth/google','/api/auth/callback'].includes(path))throw new HttpError(404,'Use email and password to sign in');
     if(['/api/auth/signup','/api/auth/signin'].includes(path)&&method==='POST') {
       // Do not trust forwarded IP headers unless your hosting proxy overwrites them.
@@ -159,7 +163,7 @@ export async function handle(request, context={}) {
       const item=await product(prod[1]);if(!item)throw new HttpError(404,'Product not found');
       if(prod[2]==='image'&&method==='GET')return productImage(item,Math.max(0,Math.min(5,Number(url.searchParams.get('index'))||0)));
       if(!prod[2]&&method==='GET') {
-        const eligible=rankProducts((await catalog()).filter(x=>config().demo||x.image&&x.productPage!==false),p,interactions(lib),onboarding,{},'',true);
+        const eligible=rankProducts((await catalog()).filter(x=>config().demo||!x.demo&&x.image&&x.productPage!==false),p,interactions(lib),onboarding,{},'',true);
         return json({product:publicProduct(item),reaction:lib.reactions[item.id]||{},similar:similarProducts(item,eligible).map(publicProduct)});
       }
       if(prod[2]==='reaction'&&method==='POST') {
@@ -172,6 +176,13 @@ export async function handle(request, context={}) {
       if(prod[2]==='outbound'&&method==='GET') {
         if(!['card','detail'].includes(url.searchParams.get('surface')))throw new HttpError(400,'Specify surface=card or surface=detail');
         if(!await store.reserve(`click:${u.id}`,500,1000000))throw new HttpError(429,'Click limit reached');
+        if(!isProductUrl(item.url)||item.productPage===false)throw new HttpError(410,'This reference has no current individual product link. Search for a current listing instead.');
+        // Reject redirects to home/category pages. Blocked retailers keep their indexed product URL.
+        if(!item.demo&&await allowedByRobots(item.url)){
+          try{const checked=await external(item.url,{maxBytes:1500000,accept:'text/html'});
+            if([404,410].includes(checked.status)||!isProductUrl(checked.url))throw new HttpError(410,'The retailer no longer has this product page. Please choose another listing.');
+          }catch(e){if(e instanceof HttpError)throw e;}
+        }
         const shop=shopUrl(item),surface=url.searchParams.get('surface');
         await store.put('event',id(),{type:'outbound_click',userId:u.id,productId:item.id,store:item.store,at:now(),surface,affiliate:shop.affiliate,demo:!!item.demo},u.id);
         await mutate('library',u.id,u.id,libraryInitial(),l=>{const r=l.reactions[item.id]||{};l.reactions[item.id]={...r,clicks:(r.clicks||0)+1};return l;});

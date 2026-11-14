@@ -189,11 +189,16 @@ test('live feed expands with indexed images, deduplicates products and stops at 
   await a('/profile','PUT',{swipes,completeOnboarding:true,preferences:defaultPreferences()});
   const initial=(await a('/feed')).data;
   assert.equal(initial.items.length,0);assert.equal(initial.canDiscover,true);
-  const first=(await a(`/feed/${initial.feedId}/advance`,'POST',{})).data;
+  const unverified=(await a(`/feed/${initial.feedId}/advance`,'POST',{})).data;
+  assert.equal(unverified.items.length,0,'Unverified stock must never be displayed');
+  for(const p of await store.list('product'))if(p.store==='retailer.invalid')await store.put('product',p.id,{...p,availability:'in_stock',availabilityCheckedAt:new Date().toISOString(),analyzedAt:new Date().toISOString()});
+  const first=(await a(`/feed/${initial.feedId}`)).data;
   assert.equal(first.items.length,2);assert.ok(first.items.every(x=>x.image.startsWith('/api/products/')));
   for(const x of first.items){const raw=await store.get('product',x.id);await store.put('product',x.id,{...raw,analyzedAt:new Date().toISOString()});}
   await a(`/feed/${initial.feedId}/advance?offset=${first.cursorEnd}`,'POST',{});
-  const next=(await a(`/feed/${initial.feedId}/advance?offset=${first.cursorEnd}`,'POST',{})).data;
+  await a(`/feed/${initial.feedId}/advance?offset=${first.cursorEnd}`,'POST',{});
+  for(const p of await store.list('product'))if(p.store==='retailer.invalid')await store.put('product',p.id,{...p,availability:'in_stock',availabilityCheckedAt:new Date().toISOString(),analyzedAt:new Date().toISOString()});
+  const next=(await a(`/feed/${initial.feedId}?offset=${first.cursorEnd}`)).data;
   assert.equal(next.items.length,1);assert.ok(first.items.every(p=>p.id!==next.items[0].id));
   const raw=await store.get('product',next.items[0].id);await store.put('product',raw.id,{...raw,analyzedAt:new Date().toISOString()});
   await a(`/feed/${initial.feedId}/advance?offset=${next.cursorEnd}`,'POST',{});
@@ -275,7 +280,7 @@ test('live search retains cached matches when the new discovery batch is empty',
  const oldKey=process.env.SERPER_API_KEY,originalFetch=globalThis.fetch;
  try{
   process.env.SERPER_API_KEY='search-empty-test';globalThis.fetch=async(input,options)=>String(input).startsWith('https://google.serper.dev/')?Response.json({}):originalFetch(input,options);
-  await store.put('product','cached-blue-skirt',{...garment('cached-blue-skirt'),title:'Blue pleated skirt',category:'skirt',url:'https://retailer.example/products/blue-skirt',image:'https://cdn.example/skirt.jpg',images:['https://cdn.example/skirt.jpg'],productPage:true,analyzedAt:new Date().toISOString()});
+  await store.put('product','cached-blue-skirt',{...garment('cached-blue-skirt'),availability:'in_stock',availabilityCheckedAt:new Date().toISOString(),title:'Blue pleated skirt',category:'skirt',url:'https://retailer.example/products/blue-skirt',image:'https://cdn.example/skirt.jpg',images:['https://cdn.example/skirt.jpg'],productPage:true,analyzedAt:new Date().toISOString()});
   const a=await client();await a('/auth/signup','POST',{email:'cached-search@example.com',password:'cached-search-password'});
   await a('/profile','PUT',{styleVotes:[],preferences:defaultPreferences(),completeOnboarding:true});
   const initial=(await a('/search','POST',{query:'blue skirts'})).data;

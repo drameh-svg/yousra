@@ -1,3 +1,4 @@
+import {checkAvailability} from './stock.mjs';
 import {isProductUrl} from './product-url.mjs';
 import {external,allowedByRobots} from './network.mjs';
 import {curatedProducts} from './curated.mjs';
@@ -30,7 +31,8 @@ function pages(items,url) {const offset=Math.max(0,Number(url.searchParams.get('
 async function product(key) {return await store.get('product',key)||curatedProducts.find(x=>x.id===key)||(config().demo?sampleProducts.find(x=>x.id===key):null);}
 async function searchView(job,p,lib,url) {
   const all=await catalog(),subset=all.filter(x=>job.productIds.includes(x.id)&&(config().demo||!x.demo&&x.image));
-  return {...pages(rankProducts(subset,{...p,preferences:job.preferences},interactions(lib),onboarding,job.filters,job.query,false,all),url),jobId:job.id,status:job.status,phase:job.phase,processed:job.processed||0,discovered:job.productIds.length,canAdvance:!['complete','error'].includes(job.status),warnings:job.warnings||[],demo:job.demo};
+  const ranked=rankProducts(subset,{...p,preferences:job.preferences},interactions(lib),onboarding,job.filters,job.query,false,all);
+  return {...pages(config().demo?ranked:await checkAvailability(ranked),url),jobId:job.id,status:job.status,phase:job.phase,processed:job.processed||0,discovered:job.productIds.length,canAdvance:!['complete','error'].includes(job.status),warnings:job.warnings||[],demo:job.demo};
 }
 async function advance(job,uid) {
   if(['complete','error'].includes(job.status))return job;
@@ -166,7 +168,7 @@ export async function handle(request, context={}) {
       if(prod[2]==='image'&&method==='GET')return productImage(item,Math.max(0,Math.min(5,Number(url.searchParams.get('index'))||0)));
       if(!prod[2]&&method==='GET') {
         const eligible=rankProducts((await catalog()).filter(x=>config().demo||!x.demo&&x.image&&x.productPage!==false),p,interactions(lib),onboarding,{},'',true);
-        return json({product:publicProduct(item),reaction:lib.reactions[item.id]||{},similar:similarProducts(item,eligible).map(publicProduct)});
+        return json({product:publicProduct(item),reaction:lib.reactions[item.id]||{},similar:(config().demo?similarProducts(item,eligible):await checkAvailability(similarProducts(item,eligible))).map(publicProduct)});
       }
       if(prod[2]==='reaction'&&method==='POST') {
         const {action}=await body(request);if(!['like','dislike','clear'].includes(action))throw new HttpError(400,'Unknown reaction');

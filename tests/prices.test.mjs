@@ -1,3 +1,4 @@
+import {verifiedAvailable} from '../src/stock.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {extractProduct} from '../src/discovery.mjs';
@@ -51,4 +52,12 @@ test('stock excludes sold out products but preserves mixed variants and unknowns
  assert.equal(shopifyAvailability({variants:[{id:1,available:false},{id:2,available:true}]},'1'),'out_of_stock');
  assert.equal(shopifyAvailability({variants:[{available:false}]}),'out_of_stock');
  assert.equal(shopifyAvailability({variants:[{}]}),'unknown');
+});
+
+test('live listings require fresh affirmative retailer stock before display',()=>{
+ const time=Date.now(),fresh=new Date(time-1000).toISOString();
+ assert.equal(verifiedAvailable({availability:'in_stock',availabilityCheckedAt:fresh},time),true);
+ for(const availability of ['unknown','out_of_stock',undefined])assert.equal(verifiedAvailable({availability,availabilityCheckedAt:fresh},time),false);
+ assert.equal(verifiedAvailable({availability:'in_stock'},time),false);
+ assert.equal(verifiedAvailable({availability:'in_stock',availabilityCheckedAt:new Date(time-1800001).toISOString()},time),false);
 });

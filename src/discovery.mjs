@@ -126,12 +126,12 @@ export function queryFilters(query, supplied) {
 }
 
 const priceRequests=new Map();
-export async function refreshProductPrice(product,{allowSearch=true}={}){
+export async function refreshProductPrice(product,{allowSearch=true,stockOnly=false}={}){
  if(product.demo||!isProductUrl(product.url))return product;
- if(product.availabilityCheckedAt&&Date.now()-Date.parse(product.availabilityCheckedAt)<6*3600000&&product.price>0&&product.currency&&product.priceCheckedAt&&Date.now()-Date.parse(product.priceCheckedAt)<6*3600000)return product;
+ if(!stockOnly&&product.availabilityCheckedAt&&Date.now()-Date.parse(product.availabilityCheckedAt)<6*3600000&&product.price>0&&product.currency&&product.priceCheckedAt&&Date.now()-Date.parse(product.priceCheckedAt)<6*3600000)return product;
  if(priceRequests.has(product.id))return priceRequests.get(product.id);
  const promise=(async()=>{
-  const key='pricing-v4:'+product.id,cache=await store.get('cache',key);
+  const key=(stockOnly?'stock-v1:':'pricing-v4:')+product.id,cache=await store.get('cache',key);
   if(cache&&cache.expires>Date.now()&&(!allowSearch||cache.searched||cache.pricing?.price>0)){const updated={...product,...cache.pricing};if(cache.pricing?.availability!==product.availability||cache.pricing?.price>0&&product.price!==cache.pricing.price)await store.put('product',product.id,updated);return updated;}
   let availability=product.availability||'unknown',availabilityCheckedAt=product.availabilityCheckedAt||null;
   let pricing={price:null,currency:null},note='No verifiable current price was available';
@@ -171,8 +171,8 @@ export async function refreshProductPrice(product,{allowSearch=true}={}){
    }
   }
   const checkedAt=now(),pricePatch=pricing.price!==null?{...pricing,priceCheckedAt:checkedAt,priceNote:null}:{priceAttemptedAt:checkedAt,priceCheckedAt:product.price>0?(product.priceCheckedAt||null):checkedAt,priceNote:note};
-  const patch={...pricePatch,availability,availabilityCheckedAt};
-  await store.put('cache',key,{pricing:patch,searched:allowSearch,expires:Date.now()+(pricing.price!==null?6*3600000:30*60000)});
+  const patch={...pricePatch,availability,availabilityCheckedAt,availabilityAttemptedAt:checkedAt};
+  await store.put('cache',key,{pricing:patch,searched:allowSearch,expires:Date.now()+(stockOnly?30*60000:pricing.price!==null?6*3600000:30*60000)});
   const updated={...product,...patch};await store.put('product',product.id,updated);return updated;
  })().finally(()=>priceRequests.delete(product.id));
  priceRequests.set(product.id,promise);return promise;

@@ -1,3 +1,4 @@
+import {checkAvailability} from './stock.mjs';
 import {curatedProducts} from './curated.mjs';
 import {store} from './store.mjs';
 import {discover,analyze} from './discovery.mjs';
@@ -27,7 +28,8 @@ export async function createFeed(profile,lib,filters){
 }
 export async function readFeed(key,uid){const s=await store.get('feed',key,uid);if(!s)throw new HttpError(404,'Feed not found');return s;}
 export async function feedView(session,profile,lib,url){
-  const all=await products(),allowed=new Map(eligible(all,profile,lib,session.filters).map(x=>[x.id,x]));
+  const all=await products(),ranked=eligible(all,profile,lib,session.filters);
+  const allowed=new Map((config().demo?ranked:await checkAvailability(ranked)).map(x=>[x.id,x]));
   const offset=Math.max(0,Number(url.searchParams.get('offset'))||0),limit=Math.max(1,Math.min(48,Number(url.searchParams.get('limit'))||24));
   const items=[];let cursor=Math.min(offset,session.productIds.length);
   while(cursor<session.productIds.length&&items.length<limit){const item=allowed.get(session.productIds[cursor++]);if(item)items.push(item);}

@@ -296,7 +296,7 @@ test('price refresh uses cached verified facts, persists them and requires authe
  const a=await client();await a('/auth/signup','POST',{email:'price-refresh@example.com',password:'price-refresh-password'});
  await a('/profile','PUT',{styleVotes:[],preferences:defaultPreferences(),completeOnboarding:true});
  await store.put('product','verified-price',{...garment('verified-price'),price:null,currency:null,url:'https://retailer.example/products/verified-price',image:'https://cdn.example/price.jpg'});
- await store.put('cache','pricing-v3:verified-price',{pricing:{price:19.95,currency:'USD',priceSource:'retailer-structured-data',priceCheckedAt:new Date().toISOString()},searched:true,expires:Date.now()+60000});
+ await store.put('cache','pricing-v4:verified-price',{pricing:{price:19.95,currency:'USD',priceSource:'retailer-structured-data',priceCheckedAt:new Date().toISOString()},searched:true,expires:Date.now()+60000});
  const result=await a('/products/verified-price/price','POST',{});
  assert.equal(result.status,200);assert.equal(result.data.product.price,19.95);assert.equal(result.data.product.currency,'USD');
  assert.equal((await store.get('product','verified-price')).price,19.95);

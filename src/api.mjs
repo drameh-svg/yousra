@@ -178,6 +178,7 @@ export async function handle(request, context={}) {
       if(prod[2]==='outbound'&&method==='GET') {
         if(!['card','detail'].includes(url.searchParams.get('surface')))throw new HttpError(400,'Specify surface=card or surface=detail');
         if(!await store.reserve(`click:${u.id}`,500,1000000))throw new HttpError(429,'Click limit reached');
+        if(item.availability==='out_of_stock')throw new HttpError(410,'This item is no longer available at the retailer.');
         if(!isProductUrl(item.url)||item.productPage===false)throw new HttpError(410,'This reference has no current individual product link. Search for a current listing instead.');
         // Reject redirects to home/category pages. Blocked retailers keep their indexed product URL.
         if(!item.demo&&await allowedByRobots(item.url)){

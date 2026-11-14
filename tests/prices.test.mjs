@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {extractProduct} from '../src/discovery.mjs';
-import {amount,moneyValue,indexedPrice,matchingIndexedPrice,shopifyPrice} from '../src/prices.mjs';
+import {productAvailability,shopifyAvailability,amount,moneyValue,indexedPrice,matchingIndexedPrice,shopifyPrice} from '../src/prices.mjs';
 const html=p=>'<script type="application/ld+json">'+JSON.stringify(p)+'</script>';
 const product=(offers,extra={})=>({'@type':'Product',name:'Blue skirt',offers,...extra});
 test('price formats require positive amounts and explicit currency',()=>{
@@ -38,4 +38,17 @@ test('index fallback must match the exact retailer product and variant URL',()=>
  assert.equal(matchingIndexedPrice(p,[{link:'https://shop.example/products/other',price:'$1'}]).price,null);
  assert.equal(matchingIndexedPrice(p,[{link:'https://shop.example/products/skirt?variant=1',price:'$1'}]).price,null);
  assert.equal(matchingIndexedPrice(p,[{link:'https://shop.example/products/skirt?utm_source=google&variant=2',price:'$39.95'}]).price,39.95);
+});
+
+test('stock excludes sold out products but preserves mixed variants and unknowns',()=>{
+ const url='https://shop.example/products/skirt';
+ const offers=[{url:url+'?variant=1',availability:'https://schema.org/OutOfStock'},{url:url+'?variant=2',availability:'https://schema.org/InStock'}];
+ assert.equal(productAvailability({offers},url),'in_stock');
+ assert.equal(productAvailability({offers},url+'?variant=1'),'out_of_stock');
+ for(const state of ['SoldOut','Discontinued','OutOfStock'])assert.equal(productAvailability({offers:{availability:'https://schema.org/'+state}},url),'out_of_stock');
+ assert.equal(productAvailability({offers:[offers[0],{}]},url),'unknown');
+ assert.equal(shopifyAvailability({variants:[{id:1,available:false},{id:2,available:true}]}),'in_stock');
+ assert.equal(shopifyAvailability({variants:[{id:1,available:false},{id:2,available:true}]},'1'),'out_of_stock');
+ assert.equal(shopifyAvailability({variants:[{available:false}]}),'out_of_stock');
+ assert.equal(shopifyAvailability({variants:[{}]}),'unknown');
 });

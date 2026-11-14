@@ -17,9 +17,9 @@ export function useProductPrice(product:ApiProduct|undefined,node:RefObject<HTML
   finally{if(mounted.current)setChecking(false);started.current=false}
  },[id,detail]);
  useEffect(()=>{
-  const element=node.current;if(!element||!id||product?.demo||(product?.price!==null&&(!detail||product?.priceCheckedAt&&Date.now()-Date.parse(product.priceCheckedAt)<6*3600000))||automaticChecks>=6&&!detail||!('IntersectionObserver' in window))return;
+  const element=node.current;if(!element||!id||product?.demo||(product?.price!==null&&product?.availabilityCheckedAt&&Date.now()-Date.parse(product.availabilityCheckedAt)<6*3600000&&(!detail||product?.priceCheckedAt&&Date.now()-Date.parse(product.priceCheckedAt)<6*3600000))||automaticChecks>=6&&!detail||!('IntersectionObserver' in window))return;
   const observer=new IntersectionObserver(entries=>{if(entries.some(e=>e.isIntersecting)){observer.disconnect();if(detail||automaticChecks<6){if(!detail)automaticChecks++;void check()}}},{rootMargin:'100px'});
   observer.observe(element);return()=>observer.disconnect();
- },[id,product?.demo,product?.price,product?.priceCheckedAt,check,node,detail]);
+ },[id,product?.demo,product?.price,product?.priceCheckedAt,product?.availabilityCheckedAt,check,node,detail]);
  return {product:result?.id===id?result:product,checking,error,check};
 }

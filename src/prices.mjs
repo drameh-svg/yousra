@@ -71,3 +71,20 @@ export function matchingIndexedPrice(product,results){
  for(const p of results){if(identity(p.link)!==identity(product.url))continue;const value=indexedPrice(p);if(value.price!==null)return value;}
  return {price:null,currency:null};
 }
+
+export function productAvailability(product,url){
+ const target=new URL(url),variant=target.searchParams.get('variant');
+ let offers=[product?.offers].flat().filter(x=>x&&typeof x==='object');
+ if(variant){const selected=offers.filter(o=>{try{return new URL(o.url,url).searchParams.get('variant')===variant}catch{return false}});if(selected.length)offers=selected;}
+ const states=offers.map(o=>String(o.availability||'').split('/').pop().toLowerCase());
+ if(states.some(s=>['instock','limitedavailability','onlineonly'].includes(s)))return 'in_stock';
+ if(states.length&&states.every(s=>['outofstock','soldout','discontinued'].includes(s)))return 'out_of_stock';
+ return 'unknown';
+}
+export function shopifyAvailability(data,variant){
+ const variants=Array.isArray(data?.variants)?data.variants:[];
+ const selected=variant?variants.filter(v=>String(v.id)===variant):variants;
+ if(selected.some(v=>v.available===true))return 'in_stock';
+ if(selected.length&&selected.every(v=>v.available===false))return 'out_of_stock';
+ return 'unknown';
+}

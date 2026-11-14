@@ -39,6 +39,7 @@ export function ProductCard({ product }: { product: CardProduct }) {
     try { await run(); } catch (e) { setError(e instanceof Error ? e.message : 'Could not update this piece.'); } finally { setBusy(false); }
   }
 
+  if(pricing.product?.availability==='out_of_stock')return null;
   return (
     <div ref={priceNode} data-product={product.id} className="group relative flex flex-col bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300 border border-stone-100">
       <div className="relative aspect-[3/4] bg-stone-50 overflow-hidden">

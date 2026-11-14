@@ -11,7 +11,7 @@ export interface Reaction {liked?:boolean;disliked?:boolean;clicks?:number}
 export interface ApiProduct {
  id:string;title:string;description:string;store:string;brand?:string;price:number|null;currency:string|null;priceFrom?:boolean;priceRange?:{min:number;max:number}|null;priceSource?:string;priceCheckedAt?:string;priceNote?:string;
  image:string|null;images:string[];styles:string[];colors:string[];category:Category|'unknown';sizes:string[];
- shippingUS:'yes'|'no'|'unknown';availability:string;attributes:Partial<Rule>;analysisSource:string;
+ shippingUS:'yes'|'no'|'unknown';availability:string;availabilityCheckedAt?:string|null;attributes:Partial<Rule>;analysisSource:string;
  evidence?:Record<string,{confidence:number;reason:string}>;confidence:number;demo?:boolean;affiliate?:boolean;
  shopPath:string;sourceUrl:string;shopAvailable?:boolean;pageFetchedAt?:string;analyzedAt?:string;
  match?:{uncertain:boolean;reasons:string[]};

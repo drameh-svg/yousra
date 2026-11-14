@@ -1,4 +1,4 @@
-import {htmlPrice,selectProduct,indexedPrice,matchingIndexedPrice,shopifyPrice} from './prices.mjs';
+import {productAvailability,shopifyAvailability,htmlPrice,selectProduct,indexedPrice,matchingIndexedPrice,shopifyPrice} from './prices.mjs';
 import {isProductUrl} from './product-url.mjs';
 import { reserve, store } from './store.mjs';
 import { external, allowedByRobots } from './network.mjs';
@@ -27,7 +27,7 @@ export function extractProduct(html,url) {
   const shipping=[offer.shippingDetails].flat().filter(Boolean);
   const countries=shipping.flatMap(x=>[x.shippingDestination].flat()).filter(Boolean).flatMap(x=>[x.addressCountry].flat()).map(x=>String(x).toUpperCase());
   return {title,description,images:[...img,meta['og:image']].filter(Boolean).map(x=>{try{return safeUrl(new URL(x,url).href);}catch{return null;}}).filter(Boolean).slice(0,6),...pricing,
-    brand:typeof product?.brand==='string'?product.brand:product?.brand?.name||'',sizes:[product?.size,...[product?.hasVariant].flat().filter(Boolean).map(x=>x.size)].flat().filter(x=>typeof x==='string').slice(0,30),shippingUS:countries.includes('US')?'yes':'unknown',availability:offer.availability?.includes('InStock')?'in_stock':offer.availability?.includes('OutOfStock')?'out_of_stock':'unknown',structured:!!product};
+    brand:typeof product?.brand==='string'?product.brand:product?.brand?.name||'',sizes:[product?.size,...[product?.hasVariant].flat().filter(Boolean).map(x=>x.size)].flat().filter(x=>typeof x==='string').slice(0,30),shippingUS:countries.includes('US')?'yes':'unknown',availability:productAvailability(product,url),structured:!!product};
 }
 export async function serper(endpoint, query, page=1) {
   if(!process.env.SERPER_API_KEY) throw new HttpError(503,'Add SERPER_API_KEY to enable broad live search');
@@ -89,7 +89,7 @@ export async function analyze(product) {
         p.image=p.images?.[0]||null;
         p.productPage=isProductUrl(response.url);
         if(!isProductUrl(response.url))p.fetchNote='Retailer redirected away from the individual product page';
-      } else p.fetchNote=`Retailer returned ${response.status}`;
+      } else {p.fetchNote=`Retailer returned ${response.status}`;if([404,410].includes(response.status))p.availability='out_of_stock';}
     } else p.fetchNote='Retailer extraction skipped: robots.txt unavailable or disallowed';
   } catch {p.fetchNote='Retailer page unavailable; search metadata only';}
   const inferred=inferAttributes(`${p.title} ${p.description}`);
@@ -128,33 +128,37 @@ export function queryFilters(query, supplied) {
 const priceRequests=new Map();
 export async function refreshProductPrice(product,{allowSearch=true}={}){
  if(product.demo||!isProductUrl(product.url))return product;
- if(product.price>0&&product.currency&&product.priceCheckedAt&&Date.now()-Date.parse(product.priceCheckedAt)<6*3600000)return product;
+ if(product.availabilityCheckedAt&&Date.now()-Date.parse(product.availabilityCheckedAt)<6*3600000&&product.price>0&&product.currency&&product.priceCheckedAt&&Date.now()-Date.parse(product.priceCheckedAt)<6*3600000)return product;
  if(priceRequests.has(product.id))return priceRequests.get(product.id);
  const promise=(async()=>{
-  const key='pricing-v3:'+product.id,cache=await store.get('cache',key);
-  if(cache&&cache.expires>Date.now()&&(!allowSearch||cache.searched||cache.pricing?.price>0)){const updated={...product,...cache.pricing};if(cache.pricing?.price>0&&product.price!==cache.pricing.price)await store.put('product',product.id,updated);return updated;}
+  const key='pricing-v4:'+product.id,cache=await store.get('cache',key);
+  if(cache&&cache.expires>Date.now()&&(!allowSearch||cache.searched||cache.pricing?.price>0)){const updated={...product,...cache.pricing};if(cache.pricing?.availability!==product.availability||cache.pricing?.price>0&&product.price!==cache.pricing.price)await store.put('product',product.id,updated);return updated;}
+  let availability=product.availability||'unknown',availabilityCheckedAt=product.availabilityCheckedAt||null;
   let pricing={price:null,currency:null},note='No verifiable current price was available';
   try{
    if(await allowedByRobots(product.url)){
     const page=await external(product.url);
     if(page.status===200&&isProductUrl(page.url)&&String(page.headers['content-type']).includes('text/html')){
      const html=page.bytes.toString(),data=extractProduct(html,page.url);
+     if(data.availability!=='unknown'){availability=data.availability;availabilityCheckedAt=now();}
      if(data.price!==null)pricing=Object.fromEntries(['price','currency','priceFrom','priceRange','priceSource'].map(k=>[k,data[k]]));
-     if(pricing.price===null&&/Shopify|cdn\.shopify\.com/i.test(html)&&/\/products\/[^/]+/.test(new URL(page.url).pathname)){
+     if((pricing.price===null||data.availability==='unknown')&&/Shopify|cdn\.shopify\.com/i.test(html)&&/\/products\/[^/]+/.test(new URL(page.url).pathname)){
       const u=new URL(page.url),variant=u.searchParams.get('variant');u.search='';u.pathname=u.pathname.replace(/\/$/,'')+'.js';
       if(await allowedByRobots(u.href)){
        const json=await external(u.href,{accept:'application/json'});
        if(json.status===200&&String(json.headers['content-type']).includes('json')){
         let currency=html.match(/Shopify\.currency\s*=\s*\{[^}]*["']active["']\s*:\s*["']([A-Z]{3})["']/)?.[1];
         if(!currency){const cart=new URL('cart.js',new URL(page.url).origin+'/');if(await allowedByRobots(cart.href)){const c=await external(cart.href,{accept:'application/json',maxBytes:100000});if(c.status===200)currency=JSON.parse(c.bytes.toString()).currency;}}
-        pricing=shopifyPrice(JSON.parse(json.bytes.toString()),currency,variant);
+        const data=JSON.parse(json.bytes.toString()),state=shopifyAvailability(data,variant);
+        if(state!=='unknown'){availability=state;availabilityCheckedAt=now();}
+        const value=shopifyPrice(data,currency,variant);if(value.price!==null)pricing=value;
        }
       }
      }
-    }else note='Retailer page could not be read for pricing';
+    }else {note='Retailer page could not be read for pricing';if([404,410].includes(page.status)){availability='out_of_stock';availabilityCheckedAt=now();}}
    }else note='Retailer does not allow automated product-page access';
   }catch{note='Retailer price could not be checked';}
-  if(pricing.price===null&&allowSearch&&process.env.SERPER_API_KEY){
+  if(availability!=='out_of_stock'&&pricing.price===null&&allowSearch&&process.env.SERPER_API_KEY){
    let failed=false;
    try{const data=await serper('shopping',`"${product.url}"`);pricing=matchingIndexedPrice(product,[...(data.shopping||[]),...(data.organic||[])]);}catch(e){failed=true;note=e.status===429?'Price lookup paused at the search usage limit':'Exact-product price lookup unavailable';}
    if(pricing.price===null){
@@ -166,7 +170,8 @@ export async function refreshProductPrice(product,{allowSearch=true}={}){
     }catch(e){note=e.status===429?'Price lookup paused at the search usage limit':'Exact-product price lookup unavailable';}
    }
   }
-  const checkedAt=now(),patch=pricing.price!==null?{...pricing,priceCheckedAt:checkedAt,priceNote:null}:{priceAttemptedAt:checkedAt,priceCheckedAt:product.price>0?(product.priceCheckedAt||null):checkedAt,priceNote:note};
+  const checkedAt=now(),pricePatch=pricing.price!==null?{...pricing,priceCheckedAt:checkedAt,priceNote:null}:{priceAttemptedAt:checkedAt,priceCheckedAt:product.price>0?(product.priceCheckedAt||null):checkedAt,priceNote:note};
+  const patch={...pricePatch,availability,availabilityCheckedAt};
   await store.put('cache',key,{pricing:patch,searched:allowSearch,expires:Date.now()+(pricing.price!==null?6*3600000:30*60000)});
   const updated={...product,...patch};await store.put('product',product.id,updated);return updated;
  })().finally(()=>priceRequests.delete(product.id));

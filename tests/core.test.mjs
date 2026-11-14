@@ -35,7 +35,7 @@ test('dislikes hide only feed, price and size filters exclude unverified values'
  assert.equal(rankProducts(products,profile,events,[],{},'',false).length,2);
  assert.deepEqual(rankProducts(products,profile,[],[],{maxPrice:50,size:'m'}).map(x=>x.id),['x']);
 });
-test('learning changes order, confidence remains dominant',()=>{
+test('learning changes order within eligible products',()=>{
  const profile={preferences:defaultPreferences(),swipes:[]};profile.preferences.styles=['classic'];
  const products=[garment('a',{styles:['classic']}),garment('b',{styles:['boho']})];
  assert.equal(rankProducts(products,profile,[],[])[0].id,'a');
@@ -290,4 +290,35 @@ test('an explicit single title color cannot be overridden by inferred colors dur
  const p=garment('white',{title:'White maxi dress',colors:['blue','white']});
  assert.equal(rankProducts([p],{preferences:defaultPreferences(),swipes:[]},[],[],{color:'blue'}).length,0);
  assert.equal(rankProducts([p],{preferences:defaultPreferences(),swipes:[]},[],[],{color:'white'}).length,1);
+});
+
+test('price refresh uses cached verified facts, persists them and requires authentication',async()=>{
+ const a=await client();await a('/auth/signup','POST',{email:'price-refresh@example.com',password:'price-refresh-password'});
+ await a('/profile','PUT',{styleVotes:[],preferences:defaultPreferences(),completeOnboarding:true});
+ await store.put('product','verified-price',{...garment('verified-price'),price:null,currency:null,url:'https://retailer.example/products/verified-price',image:'https://cdn.example/price.jpg'});
+ await store.put('cache','pricing-v3:verified-price',{pricing:{price:19.95,currency:'USD',priceSource:'retailer-structured-data',priceCheckedAt:new Date().toISOString()},searched:true,expires:Date.now()+60000});
+ const result=await a('/products/verified-price/price','POST',{});
+ assert.equal(result.status,200);assert.equal(result.data.product.price,19.95);assert.equal(result.data.product.currency,'USD');
+ assert.equal((await store.get('product','verified-price')).price,19.95);
+ const stranger=await client();assert.equal((await stranger('/products/verified-price/price','POST',{})).status,401);
+});
+
+
+test('explicit tastes outrank unrelated source confidence in search and feed, never hard restrictions',()=>{
+ const p=defaultPreferences();p.styles=['casual'];p.colors=['blue'];p.preferredBrands=['Uniqlo'];p.rules.dress.sleeves='long';p.budgetMax=60;
+ const relevant=garment('relevant',{styles:['casual'],colors:['blue'],brand:'Uniqlo',price:40,confidence:0.35,analysisSource:'search-description',attributes:{sleeves:'unknown',length:'maxi'}});
+ const unrelated=garment('unrelated',{styles:['elegant'],colors:['red'],brand:'Other',confidence:0.99});
+ const violating={...relevant,id:'violating',attributes:{sleeves:'short'},confidence:1};
+ const expensive={...relevant,id:'expensive',price:100};
+ for(const feed of [false,true]){
+  const result=rankProducts([unrelated,violating,expensive,relevant],{preferences:p,swipes:[]},[],[],{},feed?'':'dress',feed);
+  assert.equal(result[0].id,'relevant');assert.ok(!result.some(x=>['violating','expensive'].includes(x.id)));
+  assert.ok(result[0].match.reasons.includes('From a brand you like'));
+ }
+});
+test('favorite brands and coverage presets persist in account preferences',async()=>{
+ const a=await client();await a('/auth/signup','POST',{email:'favorite-brands@example.com',password:'preferred-brands-password'});
+ const p=defaultPreferences();p.styles=['casual'];p.preferredBrands=['Uniqlo'];p.budgetMax=50;
+ assert.equal((await a('/profile','PUT',{preferences:p,coveragePreset:'Moderate',styleVotes:[],completeOnboarding:true})).status,200);
+ const me=(await a('/me')).data;assert.deepEqual(me.profile.preferences.preferredBrands,['uniqlo']);assert.equal(me.profile.coveragePreset,'Moderate');assert.equal(me.profile.preferences.budgetMax,50);
 });

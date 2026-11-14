@@ -23,25 +23,17 @@ export function contentModel(products) {
   const vector=p=>Object.fromEntries(Object.entries(raw.get(p.id)||contentVector(p)).map(([k,v])=>[k,v*(1+Math.log((unique.length+1)/((df[k]||0)+1)))]));
   return {vector};
 }
-export function diversify(items, model) {
-  const result=[];
-  // Confidence tiers are never mixed, including during diversity re-ranking.
-  for(const uncertain of [false,true]) {
-    const remaining=items.filter(p=>p.match.uncertain===uncertain);
-    const chosen=[];
-    while(remaining.length){
-      let best=0,bestScore=-Infinity;
-      for(let i=0;i<remaining.length;i++){
-        const p=remaining[i];
-        const recent=chosen.slice(-8);
-        const similarity=recent.length?Math.max(...recent.map(q=>Math.max(0,cosine(model.vector(p),model.vector(q))))):0;
-        const retailerPenalty=recent.filter(q=>q.store&&q.store===p.store).length*0.7;
-        const score=p.match.score-similarity*3-retailerPenalty;
-        if(score>bestScore){best=i;bestScore=score;}
-      }
-      chosen.push(remaining.splice(best,1)[0]);
-    }
-    result.push(...chosen);
+export function diversify(items,model){
+ const remaining=[...items],chosen=[];
+ while(remaining.length){
+  let best=0,bestScore=-Infinity;
+  for(let i=0;i<remaining.length;i++){
+   const p=remaining[i],recent=chosen.slice(-8);
+   const similarity=recent.length?Math.max(...recent.map(q=>Math.max(0,cosine(model.vector(p),model.vector(q))))):0;
+   const score=p.match.score-similarity*3-recent.filter(q=>q.store&&q.store===p.store).length*0.7;
+   if(score>bestScore){best=i;bestScore=score;}
   }
-  return result;
+  chosen.push(remaining.splice(best,1)[0]);
+ }
+ return chosen;
 }

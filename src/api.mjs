@@ -7,7 +7,7 @@ import { signIn,signOut,user,refresh,assertEnvironment } from './auth.mjs';
 import { store,mutate } from './store.mjs';
 import { defaultPreferences,validatePreferences,filtersFrom } from './preferences.mjs';
 import { onboarding,sampleProducts } from './seed.mjs';
-import { discover,analyze,queryFilters } from './discovery.mjs';
+import { discover,analyze,queryFilters,refreshProductPrice } from './discovery.mjs';
 import { rankProducts,similarProducts } from './rank.mjs';
 import { body,config,hash,host,HttpError,id,json,now,safeUrl,text } from './util.mjs';
 
@@ -94,6 +94,7 @@ export async function handle(request, context={}) {
       const data=await body(request);
       const updated=await mutate('profile',u.id,u.id,{...(await profile(u.id))},p=>{
         if(data.preferences)p.preferences=validatePreferences(data.preferences);
+        if(data.coveragePreset!==undefined){if(!['Conservative','Moderate','Relaxed'].includes(data.coveragePreset))throw new HttpError(400,'Invalid coverage preset');p.coveragePreset=data.coveragePreset;}
         if(data.swipes!==undefined) {
           if(!Array.isArray(data.swipes)||data.swipes.length!==15||new Set(data.swipes.map(s=>s.id)).size!==15||data.swipes.some(s=>!onboarding.some(p=>p.id===s.id)||typeof s.like!=='boolean'))throw new HttpError(400,'Complete all 15 unique swipes');
           p.swipes=data.swipes.map(s=>({id:s.id,like:s.like}));
@@ -158,9 +159,10 @@ export async function handle(request, context={}) {
           if(data.name!==undefined){const n=text(data.name,60);if(!n)throw new HttpError(400,'Name required');c.name=n;}
           if(data.productId){if(data.remove)c.productIds=c.productIds.filter(x=>x!==data.productId);else if(!c.productIds.includes(data.productId)){if(c.productIds.length>=500)throw new HttpError(400,'Collection item limit reached');c.productIds.push(data.productId);}}return l;});return json({collections:updated.collections});}
     }
-    const prod=path.match(/^\/api\/products\/([\w-]+)(?:\/(reaction|outbound|image))?$/);
+    const prod=path.match(/^\/api\/products\/([\w-]+)(?:\/(reaction|outbound|image|price))?$/);
     if(prod) {
-      const item=await product(prod[1]);if(!item)throw new HttpError(404,'Product not found');
+      let item=await product(prod[1]);if(!item)throw new HttpError(404,'Product not found');
+      if(prod[2]==='price'&&method==='POST'){item=await refreshProductPrice(item);return json({product:publicProduct(item)});}
       if(prod[2]==='image'&&method==='GET')return productImage(item,Math.max(0,Math.min(5,Number(url.searchParams.get('index'))||0)));
       if(!prod[2]&&method==='GET') {
         const eligible=rankProducts((await catalog()).filter(x=>config().demo||!x.demo&&x.image&&x.productPage!==false),p,interactions(lib),onboarding,{},'',true);

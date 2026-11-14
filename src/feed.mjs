@@ -6,7 +6,7 @@ import {onboarding,sampleProducts} from './seed.mjs';
 import {config,hash,id,now,HttpError} from './util.mjs';
 
 export const feedInteractions=lib=>Object.entries(lib.reactions).map(([productId,r])=>({...r,productId,saved:lib.collections.some(c=>!c.system&&c.productIds.includes(productId))}));
-async function products(){const all=await store.list('product');return config().demo?[...all,...sampleProducts]:all.filter(p=>!p.demo);}
+async function products(){const all=await store.list('product');return config().demo?[...new Map([...sampleProducts,...all].map(p=>[p.id,p])).values()]:all.filter(p=>!p.demo);}
 function eligible(all,p,lib,filters){return rankProducts(config().demo?all:all.filter(x=>x.image&&x.productPage!==false),p,feedInteractions(lib),onboarding,filters,'',true,[...all,...curatedProducts]);}
 export function feedQuery(profile,interactions,all,round,filters={}) {
   const prefs=profile.preferences,weights=preferenceWeights(profile,interactions,all,onboarding);
@@ -17,6 +17,7 @@ export function feedQuery(profile,interactions,all,round,filters={}) {
   const nouns={dress:'maxi dress',top:'blouse top',skirt:'maxi skirt',outerwear:'coat cardigan',pants:'wide leg trousers'};
   const words=[filters.style||best('style:',prefs.styles[0]||'modest'),round%3===0?(filters.color||best('color:',prefs.colors[0]||'')):(filters.color||''),rule.sleeves==='long'?'long sleeve':'',rule.neckline==='high'?'high neck':'',rule.fit==='loose'?'loose fit':'',nouns[category]||'women clothing'];
   const budget=filters.maxPrice??prefs.budgetMax;if(budget)words.push(`under $${budget}`);
+  if(prefs.preferredBrands?.length&&round%2===0)words.push(prefs.preferredBrands[Math.floor(round/2)%prefs.preferredBrands.length]);
   words.push('women US');return {query:words.filter(Boolean).join(' '),page:1+Math.floor(round/ordered.length)};
 }
 export async function createFeed(profile,lib,filters){

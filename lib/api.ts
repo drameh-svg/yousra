@@ -1,15 +1,15 @@
 export type Category = 'dress' | 'skirt' | 'top' | 'pants' | 'outerwear';
 export type Rule = Record<'sleeves'|'neckline'|'length'|'fit'|'transparency'|'slits'|'cutouts', string>;
 export interface Preferences {
-  styles:string[]; colors:string[]; sizes:string[]; excludedBrands:string[]; budgetMax:number|null;
+  styles:string[]; colors:string[]; sizes:string[]; preferredBrands?:string[]; excludedBrands:string[]; budgetMax:number|null;
   pantsAllowed:boolean; allowLayering:boolean; destination:'US'; rules:Record<Category,Rule>;
 }
-export interface Profile { id:string; preferences:Preferences; onboarded:boolean; swipes:{id:string;like:boolean}[]; version:number }
+export interface Profile { coveragePreset?:string; id:string; preferences:Preferences; onboarded:boolean; swipes:{id:string;like:boolean}[]; version:number }
 export interface Account {id:string;email:string}
 export interface Collection {id:string;name:string;productIds:string[];system?:boolean}
 export interface Reaction {liked?:boolean;disliked?:boolean;clicks?:number}
 export interface ApiProduct {
- id:string;title:string;description:string;store:string;brand?:string;price:number|null;currency:string|null;
+ id:string;title:string;description:string;store:string;brand?:string;price:number|null;currency:string|null;priceFrom?:boolean;priceRange?:{min:number;max:number}|null;priceSource?:string;priceCheckedAt?:string;priceNote?:string;
  image:string|null;images:string[];styles:string[];colors:string[];category:Category|'unknown';sizes:string[];
  shippingUS:'yes'|'no'|'unknown';availability:string;attributes:Partial<Rule>;analysisSource:string;
  evidence?:Record<string,{confidence:number;reason:string}>;confidence:number;demo?:boolean;affiliate?:boolean;
@@ -40,5 +40,5 @@ export const colors=['black','white','blue','navy','green','pink','red','brown',
 export const pretty=(s:string)=>s.replaceAll('_',' ').replace(/^./,c=>c.toUpperCase());
 export function money(p:ApiProduct){
  if(p.price===null||!p.currency)return 'Price unknown';
- try{return new Intl.NumberFormat('en-US',{style:'currency',currency:p.currency}).format(p.price)}catch{return `${p.currency} ${p.price.toFixed(2)}`}
+ try{return (p.priceFrom?'From ':'')+new Intl.NumberFormat('en-US',{style:'currency',currency:p.currency}).format(p.price)}catch{return `${p.currency} ${p.price.toFixed(2)}`}
 }

@@ -3,6 +3,9 @@
 import { useState, useEffect } from "react";
 import { Check } from "lucide-react";
 import { usePrefs, writePrefs, type Prefs } from "@/lib/use-prefs";
+import {useSession} from "@/components/session-provider";
+import {api} from "@/lib/api";
+import {accountPreferences} from "@/lib/profile-preferences";
 import { BRAND_LIST } from "@/lib/brands";
 import Link from "next/link";
 
@@ -20,10 +23,15 @@ const MODESTY_DESC = {
 
 export default function ProfilePage() {
   const { prefs } = usePrefs();
+  const session=useSession();
+  const [saving,setSaving]=useState(false),[error,setError]=useState("");
   const [form, setForm] = useState({ ...prefs });
   const [saved, setSavedState] = useState(false);
 
-  useEffect(() => { queueMicrotask(()=>setForm({ ...prefs })); }, [prefs]);
+  useEffect(() => {queueMicrotask(()=>{
+    if(session.user&&session.profile){const p=session.profile.preferences;setForm({...prefs,email:session.user.email,aesthetics:p.styles.map(s=>s.charAt(0).toUpperCase()+s.slice(1)),sizes:p.sizes.map(s=>s.toUpperCase()),brands:p.preferredBrands||[],budget:p.budgetMax==null?'':p.budgetMax===50?'Under $50':p.budgetMax===100?'$50–$100':p.budgetMax===200?'$100–$200':String(p.budgetMax),modesty:(session.profile.coveragePreset||'') as Prefs['modesty']});}
+    else setForm({...prefs});
+  });},[prefs,session.user,session.profile]);
 
   function toggle<K extends keyof Prefs>(key: K, value: string) {
     setForm((f) => {
@@ -42,16 +50,19 @@ export default function ProfilePage() {
     });
   }
 
-  function handleSave() {
-    writePrefs(form);
-    setSavedState(true);
-    setTimeout(() => setSavedState(false), 2000);
+  async function handleSave(){
+    if(saving||session.loading)return;setSaving(true);setError('');
+    try{
+      if(session.user&&session.profile){await api('/profile','PUT',{preferences:accountPreferences(form,session.profile.preferences,form.modesty!==(session.profile.coveragePreset||'')),...(form.modesty?{coveragePreset:form.modesty}:{})});await session.reload();}
+      writePrefs(form);setSavedState(true);setTimeout(()=>setSavedState(false),2000);
+    }catch(e){setError(e instanceof Error?e.message:'Could not save preferences.')}finally{setSaving(false)}
   }
 
   return (
     <main style={{ minHeight: "100vh", background: "var(--bg)", padding: "32px 20px 80px" }}>
       <div style={{ maxWidth: "680px", margin: "0 auto" }}>
 
+        {session.user&&prefs.onboardingDone?<button type="button" onClick={()=>setForm({...prefs,email:session.user!.email})} style={{fontSize:12,color:'var(--muted)',textDecoration:'underline',background:'none',border:0,cursor:'pointer',marginBottom:16}}>Use earlier preferences saved on this device</button>:null}
         <h1 style={{
           fontFamily: "var(--font-serif,'Instrument Serif',Georgia,serif)",
           fontWeight: 400, fontSize: "clamp(26px,3vw,36px)", color: "#352D27",
@@ -159,7 +170,8 @@ export default function ProfilePage() {
         </Card>
 
         {/* ── Save ── */}
-        <button onClick={handleSave}
+        {error?<p role="alert">{error}</p>:null}
+        <button disabled={saving||session.loading} onClick={()=>void handleSave()}
           style={{
             width: "100%", padding: "14px", borderRadius: "12px",
             background: saved ? "#DCFCFF" : "#352D27",
@@ -168,7 +180,7 @@ export default function ProfilePage() {
             display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
             transition: "background 0.2s",
           }}>
-          {saved ? <><Check size={16} /> Preferences saved</> : "Save preferences"}
+          {saved ? <><Check size={16} /> Preferences saved</> : saving?"Saving…":"Save preferences"}
         </button>
       </div>
     </main>

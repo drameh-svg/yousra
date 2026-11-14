@@ -67,7 +67,7 @@ export default function OnboardingPage() {
     try{
     if(session.user&&session.profile){
       const preferences=structuredClone(session.profile.preferences);
-      preferences.styles=selectedAesthetics.map(s=>s.toLowerCase());preferences.budgetMax=budget?Number(budget):null;
+      preferences.preferredBrands=selectedBrands;preferences.styles=selectedAesthetics.map(s=>s.toLowerCase());preferences.budgetMax=budget?Number(budget):null;
       for(const [category,rule] of Object.entries(preferences.rules)){
         rule.sleeves=coverage==='Conservative'?'long':coverage==='Moderate'?'elbow':'any';
         rule.neckline=coverage==='Conservative'?'high':coverage==='Moderate'?'medium':'any';
@@ -75,7 +75,7 @@ export default function OnboardingPage() {
         rule.length=['dress','skirt'].includes(category)?coverage==='Conservative'?'maxi':coverage==='Moderate'?'midi':'any':'any';
         rule.transparency=coverage==='Relaxed'?'any':'opaque';rule.slits=coverage==='Conservative'?'none':'any';rule.cutouts=coverage==='Relaxed'?'any':'none';
       }
-      await api('/profile','PUT',{preferences,styleVotes:votes,completeOnboarding:true});
+      await api('/profile','PUT',{preferences,coveragePreset:coverage,styleVotes:votes,completeOnboarding:true});
       await session.reload();
     }
     writePrefs({aesthetics:selectedAesthetics,styleVotes:votes,modesty:coverage,budget,brands:selectedBrands,onboardingDone:true});

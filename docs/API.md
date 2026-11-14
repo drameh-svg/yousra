@@ -180,3 +180,28 @@ expanded 24 to 62 products with simulated external providers and the real feed A
 without duplicate IDs or moving earlier cards. One real-provider verification used
 3 Serper calls and 2 Gemini calls, grew eligible matches from 28 to 37, returned no
 warnings, and removed its temporary feed record afterward.
+
+
+### Verified prices and preference priority — 2026-11-13
+- `POST /api/products/:id/price` refreshes retailer/indexed pricing. It requires the
+  same authenticated/onboarded account and CSRF protection as other product actions.
+- Product responses can include `priceSource`, `priceCheckedAt`, `priceFrom`,
+  `priceRange` and `priceNote`. Variant ranges render as “From”, never an exact selected price.
+- Parse all primary-product offers, non-membership price specifications, alternate
+  meta tags and unambiguous microdata. Shopify public product JSON uses cents and
+  an explicitly identified currency. Exact-product index fallback uses existing Serper limits.
+- Card checks are limited to six automatic visible unknowns per browser session,
+  serialized; opened details can refresh independently. Pages render before refresh.
+- Successful price checks cache for six hours; failed checks for thirty minutes.
+  Do not overwrite a verified old price with a guessed value or mark a failed refresh fresh.
+- `preferences.preferredBrands` and optional `coveragePreset` are validated and stored.
+  The main Profile page now writes preferences to the backend, not just local storage.
+- Chosen styles/colors/brands and interaction similarity meaningfully influence the
+  top of both search and feed; coverage, budget and other explicit exclusions stay hard filters.
+- Existing device-only settings can be loaded explicitly in Profile and saved to the account.
+
+Validation: 36 tests, lint and production build passed. Browser checks proved visible
+price recovery, backend preference persistence and recommendation order changing after
+Profile edits and reload. A real retailer-only refresh recovered 16 missing prices from
+20 checked listings. The referenced Amazon product remained unavailable from exact
+price sources; no value was invented. No paid billing or provider caps were increased.

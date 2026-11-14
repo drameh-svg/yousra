@@ -17,15 +17,17 @@ TensorFlow Recommenders/two-tower training and collaborative models remain futur
 
 Exclude known modesty violations, disallowed pants, excluded stores/brands, out-of-stock items, unsupported items and known US-shipping exclusions before scoring. Enforce requested price/currency, size and other search filters. Saved sizes reject known incompatible size lists; unknown size availability stays unverified unless a specific size filter requires evidence. Optional layering relaxes only the fields the existing preference contract permits.
 
-Parse explicit wording such as sheer, see-through, cutouts, slits and three-quarter sleeves conservatively. Conflicting or incomplete evidence remains uncertain. Ranking separates confident and uncertain candidates; likes never override a hard restriction. Stable feed sessions freeze their current sequence while later discovery batches append; a refreshed feed re-ranks the whole available pool.
+Parse explicit wording such as sheer, see-through, cutouts, slits and three-quarter sleeves conservatively. Conflicting or incomplete evidence remains uncertain. Ranking retains uncertainty labels and a bounded quality penalty; selected tastes can now outrank unrelated high-confidence items. Likes never override a hard restriction. Stable feed sessions freeze their current sequence while later discovery batches append; a refreshed feed re-ranks the whole available pool.
 
 ## Taste and variety
 
-Learn from selected styles/colors, onboarding swipes, current likes/dislikes, collection saves and capped outbound-click counts. Use the full catalog as signal context, even when a search returns a smaller subset. Dislikes remove the item from For You; custom saves do not overwrite that choice.
+Learn from selected styles/colors/favorite brands, onboarding swipes, current likes/dislikes, collection saves and capped outbound-click counts. Use the full catalog as signal context, even when a search returns a smaller subset. Dislikes remove the item from For You; custom saves do not overwrite that choice.
 
-Item vectors contain style, color, category, known attributes and title tokens. TF-IDF reduces the influence of common features. Cosine similarity relates unseen items to previously liked/saved/disliked items. Greedy similarity and repeated-retailer penalties diversify eligible recommendations within confidence tiers. Scores are heuristic preference signals, not probabilities or measured recommendation accuracy.
+Item vectors contain style, color, category, known attributes and title tokens. TF-IDF reduces the influence of common features. Cosine similarity relates unseen items to previously liked/saved/disliked items. Greedy similarity and repeated-retailer penalties diversify eligible recommendations without overpowering preference relevance. Scores are heuristic preference signals, not probabilities or measured recommendation accuracy.
 
-Candidate discovery uses learned style/color/category preferences plus category-specific coverage wording, rotates categories, and paginates external searches. Explicit profile rules continue to filter every result. Results and analysis use persistent caches and existing provider caps. No top-ups or paid services were enabled.
+Profile edits now persist to the backend and update profile version so refreshed feeds use the new settings.
+
+Candidate discovery uses learned style/color/category/brand preferences plus category-specific coverage wording, rotates categories, and paginates external searches. Explicit profile rules continue to filter every result. Results and analysis use persistent caches and existing provider caps. No top-ups or paid services were enabled.
 
 ## Photos and individual products
 

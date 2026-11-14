@@ -53,9 +53,12 @@ export function rankProducts(products, profile, interactions, swipes, filters={}
     const taste=features(p).reduce((sum,f)=>sum+(weights[f]||0),0)/Math.sqrt(Math.max(1,features(p).length));
     const learned=signals.reduce((sum,x)=>sum+x.weight*cosine(model.vector(p),model.vector(x.p)),0)/Math.sqrt(Math.max(1,signals.length));
     const uncertain=modest.confidence<0.65 || (p.analysisSource!=='vision+description'&&p.analysisSource!=='curated-reference');
-    // Separate confidence buckets: an uncertain item cannot outrank a confident match.
-    const score=(uncertain?0:10000)+lexical*50+taste+learned*4+modest.confidence*10+(p.shippingUS==='yes'?2:0);
-    return [{...p,match:{score:Math.round(score*100)/100,confidence:modest.confidence,uncertain,reasons:[...modest.reasons,...(learned>0.3?['Similar to pieces you liked or saved']:[]),...(p.styles?.some(x=>prefs.styles.includes(x))?['Matches your styles']:[])]}}];
+    const styleMatch=p.styles?.some(s=>prefs.styles.includes(s))?1:0;
+    const colorMatch=p.colors?.some(c=>prefs.colors.includes(c))?1:0;
+    const normalized=value=>String(value||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+    const brandMatch=(prefs.preferredBrands||[]).some(b=>[p.brand,p.store].some(value=>{const brand=normalized(b),store=normalized(value);return brand.length>2?store.includes(brand):store===brand||store===brand+'com'}));
+    const score=lexical*80+styleMatch*50+colorMatch*20+(brandMatch?35:0)+taste*3+learned*25+modest.confidence*8-(uncertain?4:0)+(p.shippingUS==='yes'?2:0);
+    return [{...p,match:{score:Math.round(score*100)/100,confidence:modest.confidence,uncertain,reasons:[...modest.reasons,...(learned>0.3?['Similar to pieces you liked or saved']:[]),...(styleMatch?['Matches your styles']:[]),...(colorMatch?['Matches your colors']:[]),...(brandMatch?['From a brand you like']:[])]}}];
   }).sort((a,b)=>b.match.score-a.match.score||a.id.localeCompare(b.id));
   return feed?diversify(ranked,model):ranked;
 }

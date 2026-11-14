@@ -1,3 +1,4 @@
+import {htmlPrice,selectProduct,indexedPrice,matchingIndexedPrice,shopifyPrice} from './prices.mjs';
 import {isProductUrl} from './product-url.mjs';
 import { reserve, store } from './store.mjs';
 import { external, allowedByRobots } from './network.mjs';
@@ -15,25 +16,23 @@ export function extractProduct(html,url) {
   const nodes=[];
   function walk(value) {if(!value||typeof value!=='object')return;if(Array.isArray(value)){value.forEach(walk);return;}nodes.push(value);if(value['@graph'])walk(value['@graph']);if(value.mainEntity)walk(value.mainEntity);if(value.hasVariant)walk(value.hasVariant);}
   for(const match of html.matchAll(/<script\b[^>]*type\s*=\s*["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)) try{walk(JSON.parse(match[1]));}catch{}
-  const product=nodes.find(n=>[n['@type']].flat().some(t=>['Product','ProductGroup'].includes(t)));
+  const product=selectProduct(nodes,url);
   const meta={};
   for(const m of html.matchAll(/<meta\b[^>]*>/gi)) {const attrs={};for(const a of m[0].matchAll(/([\w:-]+)\s*=\s*["']([^"']*)["']/g))attrs[a[1].toLowerCase()]=decode(a[2]);if(attrs.property||attrs.name)meta[attrs.property||attrs.name]=attrs.content;}
   const offer=[product?.offers].flat().find(x=>x&&typeof x==='object')||{};
   const img=[product?.image].flat().filter(Boolean).map(x=>typeof x==='string'?x:x.url);
-  const rawPrice=offer.price??offer.lowPrice??meta['product:price:amount'];
-  const price=rawPrice===null||rawPrice===undefined||String(rawPrice).trim()===''?NaN:Number(rawPrice);
-  const currency=String(offer.priceCurrency||meta['product:price:currency']||'').toUpperCase();
+  const pricing=htmlPrice(product,meta,html,url);
   const title=decode(product?.name||meta['og:title']||'');
   const description=decode(product?.description||meta['og:description']||'').replace(/<[^>]+>/g,' ').slice(0,6000);
   const shipping=[offer.shippingDetails].flat().filter(Boolean);
   const countries=shipping.flatMap(x=>[x.shippingDestination].flat()).filter(Boolean).flatMap(x=>[x.addressCountry].flat()).map(x=>String(x).toUpperCase());
-  return {title,description,images:[...img,meta['og:image']].filter(Boolean).map(x=>{try{return safeUrl(new URL(x,url).href);}catch{return null;}}).filter(Boolean).slice(0,6),price:Number.isFinite(price)&&price>0&&/^[A-Z]{3}$/.test(currency)?price:null,currency:/^[A-Z]{3}$/.test(currency)?currency:null,
+  return {title,description,images:[...img,meta['og:image']].filter(Boolean).map(x=>{try{return safeUrl(new URL(x,url).href);}catch{return null;}}).filter(Boolean).slice(0,6),...pricing,
     brand:typeof product?.brand==='string'?product.brand:product?.brand?.name||'',sizes:[product?.size,...[product?.hasVariant].flat().filter(Boolean).map(x=>x.size)].flat().filter(x=>typeof x==='string').slice(0,30),shippingUS:countries.includes('US')?'yes':'unknown',availability:offer.availability?.includes('InStock')?'in_stock':offer.availability?.includes('OutOfStock')?'out_of_stock':'unknown',structured:!!product};
 }
 export async function serper(endpoint, query, page=1) {
   if(!process.env.SERPER_API_KEY) throw new HttpError(503,'Add SERPER_API_KEY to enable broad live search');
   await reserve('serper');
-  const response=await fetch(`https://google.serper.dev/${endpoint}`,{method:'POST',headers:{'X-API-KEY':process.env.SERPER_API_KEY,'content-type':'application/json'},body:JSON.stringify({q:query,gl:'us',hl:'en',num:15,page}),signal:AbortSignal.timeout(18000)});
+  const response=await fetch(`https://google.serper.dev/${endpoint}`,{method:'POST',headers:{'X-API-KEY':process.env.SERPER_API_KEY,'content-type':'application/json'},body:JSON.stringify({q:query,gl:'us',hl:'en',num:10,page}),signal:AbortSignal.timeout(18000)});
   if(!response.ok) throw new HttpError(503,`Product discovery unavailable (${response.status}). Cached results remain available.`);
   return response.json();
 }
@@ -54,12 +53,12 @@ export function discoveryCandidates(payloads) {
     const attrs=inferAttributes(`${title} ${description}`);
     if(attrs.category==='unknown')continue;
     if(/\b(shoes|boots|sneakers|sandals|handbags?|necklace|earrings|jewelry|sunglasses|perfume)\b/i.test(title))continue;
-    const isUSD=typeof p.price==='string'&&/^\$[\d,.]+$/.test(p.price.trim());
+    const pricing=indexedPrice(p);
     const key=hash(url).slice(0,32),existing=candidates.get(key);
     const thumbnail=safeUrl(p.thumbnailUrl||'');
     const evidence=Object.fromEntries(Object.entries(attrs.attributes).filter(([,v])=>v!=='unknown').map(([k])=>[k,{confidence:0.8,reason:'Explicit wording in indexed title or description'}]));
-    const value={id:key,url,title,description,store:host(url),brand:'',price:isUSD?Number(p.price.replace(/[$,]/g,'')):null,currency:isUSD?'USD':null,images:image?[image]:[],image:image||null,thumbnail:thumbnail||null,sizes:[],shippingUS:'unknown',availability:'unknown',...attrs,evidence,confidence:0.35,analysisSource:'search-description',imageSource:image?'search-index':null,productPage:productPath,discoveredAt:now(),demo:false};
-    if(existing){if(!existing.image&&image){existing.image=image;existing.images=[image];existing.thumbnail=thumbnail;}if(existing.price===null&&value.price!==null){existing.price=value.price;existing.currency=value.currency;}if(!existing.description)existing.description=description;}
+    const value={id:key,url,title,description,store:host(url),brand:'',...pricing,priceCheckedAt:pricing.price!==null?now():null,images:image?[image]:[],image:image||null,thumbnail:thumbnail||null,sizes:[],shippingUS:'unknown',availability:'unknown',...attrs,evidence,confidence:0.35,analysisSource:'search-description',imageSource:image?'search-index':null,productPage:productPath,discoveredAt:now(),demo:false};
+    if(existing){if(!existing.image&&image){existing.image=image;existing.images=[image];existing.thumbnail=thumbnail;}if(existing.price===null&&value.price!==null){for(const k of ['price','currency','priceFrom','priceRange','priceSource','priceCheckedAt'])existing[k]=value[k];}if(!existing.description)existing.description=description;}
     else candidates.set(key,value);
   }
   return [...candidates.values()].sort((a,b)=>Number(!!b.image)-Number(!!a.image));
@@ -86,7 +85,7 @@ export async function analyze(product) {
         const extracted=extractProduct(response.bytes.toString(),p.url);
         // Never pair a price from one source with a different source's currency.
         if(extracted.price===null)extracted.currency=null;
-        p={...p,...Object.fromEntries(Object.entries(extracted).filter(([k,v])=>v!==null&&v!==''&&(!Array.isArray(v)||v.length))),url:response.url,pageFetchedAt:now()};
+        p={...p,...Object.fromEntries(Object.entries(extracted).filter(([k,v])=>v!==null&&v!==''&&(!Array.isArray(v)||v.length))),url:response.url,pageFetchedAt:now(),...(extracted.price!==null?{priceCheckedAt:now()}:{})};
         p.image=p.images?.[0]||null;
         p.productPage=isProductUrl(response.url);
         if(!isProductUrl(response.url))p.fetchNote='Retailer redirected away from the individual product page';
@@ -124,4 +123,52 @@ export function queryFilters(query, supplied) {
   if(!filters.category&&inferred.category!=='unknown')filters.category=inferred.category;
   if(!filters.color&&inferred.colors.length===1)filters.color=inferred.colors[0];
   return filters;
+}
+
+const priceRequests=new Map();
+export async function refreshProductPrice(product,{allowSearch=true}={}){
+ if(product.demo||!isProductUrl(product.url))return product;
+ if(product.price>0&&product.currency&&product.priceCheckedAt&&Date.now()-Date.parse(product.priceCheckedAt)<6*3600000)return product;
+ if(priceRequests.has(product.id))return priceRequests.get(product.id);
+ const promise=(async()=>{
+  const key='pricing-v3:'+product.id,cache=await store.get('cache',key);
+  if(cache&&cache.expires>Date.now()&&(!allowSearch||cache.searched||cache.pricing?.price>0)){const updated={...product,...cache.pricing};if(cache.pricing?.price>0&&product.price!==cache.pricing.price)await store.put('product',product.id,updated);return updated;}
+  let pricing={price:null,currency:null},note='No verifiable current price was available';
+  try{
+   if(await allowedByRobots(product.url)){
+    const page=await external(product.url);
+    if(page.status===200&&isProductUrl(page.url)&&String(page.headers['content-type']).includes('text/html')){
+     const html=page.bytes.toString(),data=extractProduct(html,page.url);
+     if(data.price!==null)pricing=Object.fromEntries(['price','currency','priceFrom','priceRange','priceSource'].map(k=>[k,data[k]]));
+     if(pricing.price===null&&/Shopify|cdn\.shopify\.com/i.test(html)&&/\/products\/[^/]+/.test(new URL(page.url).pathname)){
+      const u=new URL(page.url),variant=u.searchParams.get('variant');u.search='';u.pathname=u.pathname.replace(/\/$/,'')+'.js';
+      if(await allowedByRobots(u.href)){
+       const json=await external(u.href,{accept:'application/json'});
+       if(json.status===200&&String(json.headers['content-type']).includes('json')){
+        let currency=html.match(/Shopify\.currency\s*=\s*\{[^}]*["']active["']\s*:\s*["']([A-Z]{3})["']/)?.[1];
+        if(!currency){const cart=new URL('cart.js',new URL(page.url).origin+'/');if(await allowedByRobots(cart.href)){const c=await external(cart.href,{accept:'application/json',maxBytes:100000});if(c.status===200)currency=JSON.parse(c.bytes.toString()).currency;}}
+        pricing=shopifyPrice(JSON.parse(json.bytes.toString()),currency,variant);
+       }
+      }
+     }
+    }else note='Retailer page could not be read for pricing';
+   }else note='Retailer does not allow automated product-page access';
+  }catch{note='Retailer price could not be checked';}
+  if(pricing.price===null&&allowSearch&&process.env.SERPER_API_KEY){
+   let failed=false;
+   try{const data=await serper('shopping',`"${product.url}"`);pricing=matchingIndexedPrice(product,[...(data.shopping||[]),...(data.organic||[])]);}catch(e){failed=true;note=e.status===429?'Price lookup paused at the search usage limit':'Exact-product price lookup unavailable';}
+   if(pricing.price===null){
+    try{
+     const u=new URL(product.url),asin=u.pathname.match(/\/(?:dp|gp\/product)\/([A-Z0-9]{10})(?:\/|$)/i)?.[1];
+     const data=await serper('search',`site:${u.hostname} ${asin||'"'+product.url+'"'} price`);
+     pricing=matchingIndexedPrice(product,[...(data.organic||[])]);
+     if(pricing.price===null&&!failed)note='No exact-product indexed price was available';
+    }catch(e){note=e.status===429?'Price lookup paused at the search usage limit':'Exact-product price lookup unavailable';}
+   }
+  }
+  const checkedAt=now(),patch=pricing.price!==null?{...pricing,priceCheckedAt:checkedAt,priceNote:null}:{priceAttemptedAt:checkedAt,priceCheckedAt:product.price>0?(product.priceCheckedAt||null):checkedAt,priceNote:note};
+  await store.put('cache',key,{pricing:patch,searched:allowSearch,expires:Date.now()+(pricing.price!==null?6*3600000:30*60000)});
+  const updated={...product,...patch};await store.put('product',product.id,updated);return updated;
+ })().finally(()=>priceRequests.delete(product.id));
+ priceRequests.set(product.id,promise);return promise;
 }

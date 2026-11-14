@@ -7,13 +7,13 @@ export const choices = {
   transparency:['any','opaque'], slits:['any','none'], cutouts:['any','none'],
 };
 export const defaultPreferences = () => ({
-  styles:[],colors:[],sizes:[],excludedBrands:[],budgetMax:null,pantsAllowed:true,allowLayering:false,destination:'US',
+  styles:[],colors:[],sizes:[],preferredBrands:[],excludedBrands:[],budgetMax:null,pantsAllowed:true,allowLayering:false,destination:'US',
   rules:Object.fromEntries(categories.map(c=>[c,{sleeves:'any',neckline:'any',length:'any',fit:'any',transparency:'any',slits:'any',cutouts:'any'}])),
 });
 export function validatePreferences(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new HttpError(400,'Invalid preferences');
   const out = defaultPreferences();
-  for (const field of ['styles','colors','sizes','excludedBrands']) {
+  for (const field of ['styles','colors','sizes','preferredBrands','excludedBrands']) {
     if (input[field] !== undefined && (!Array.isArray(input[field]) || input[field].length>30 || input[field].some(x=>typeof x!=='string'))) throw new HttpError(400,`Invalid ${field}`);
     out[field] = (input[field] || []).map(x=>text(x,60).toLowerCase()).filter(Boolean);
   }

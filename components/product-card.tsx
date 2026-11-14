@@ -1,9 +1,11 @@
 'use client';
-import { useState } from 'react';
+import { useState,useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Bookmark, ExternalLink, Heart, X } from 'lucide-react';
 import {isProductUrl} from '@/src/product-url.mjs';
+import {money,type ApiProduct} from '@/lib/api';
+import {useProductPrice} from '@/lib/use-product-price';
 import { useProductActions } from '@/lib/use-product-actions';
 
 // Minimal interface accepted by this card — compatible with both the local
@@ -17,10 +19,12 @@ export interface CardProduct {
   aesthetic: string;
   storeUrl: string;
   pinUrl?: string;
-  raw?: { sourceUrl?:string;shopAvailable?:boolean;demo?: boolean; match?: { uncertain?: boolean } | null; affiliate?: boolean };
+  raw?: ApiProduct;
 }
 
 export function ProductCard({ product }: { product: CardProduct }) {
+  const priceNode=useRef<HTMLDivElement>(null);
+  const pricing=useProductPrice(product.raw,priceNode);
   const {saved,liked,disliked,toggleSaved,react,loading} = useProductActions(product.id);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -36,7 +40,7 @@ export function ProductCard({ product }: { product: CardProduct }) {
   }
 
   return (
-    <div data-product={product.id} className="group relative flex flex-col bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300 border border-stone-100">
+    <div ref={priceNode} data-product={product.id} className="group relative flex flex-col bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300 border border-stone-100">
       <div className="relative aspect-[3/4] bg-stone-50 overflow-hidden">
         <Link href={detailPath} className="absolute inset-0" aria-label={`View ${product.title}`}>
           {product.image && !imgError
@@ -60,8 +64,9 @@ export function ProductCard({ product }: { product: CardProduct }) {
         <Link href={detailPath} className="text-xs font-medium text-stone-800 leading-snug line-clamp-1">{product.title}</Link>
         <div className="flex flex-wrap items-center justify-between gap-1 mt-1">
           <span className="text-[11px] text-stone-400 truncate">{product.store}</span>
-          <span className="text-xs font-semibold text-stone-900">{product.price}</span>
+          <span className="text-xs font-semibold text-stone-900" title={pricing.error||pricing.product?.priceNote||undefined}>{pricing.checking?'Checking price…':pricing.product?money(pricing.product):product.price}</span>
         </div>
+        {pricing.product?.price===null&&!product.raw?.demo?<button type="button" disabled={pricing.checking} onClick={()=>void pricing.check()} className="mt-1 text-[11px] text-stone-500 underline disabled:opacity-50">{pricing.checking?'Checking…':'Check price'}</button>:null}
         {product.raw?.demo ? <p className="mt-1 text-[10px] text-stone-400">Sample reference · not a current listing</p> : product.raw?.match?.uncertain ? <p className="mt-1 text-[10px] text-stone-400">Coverage unverified</p> : null}
         {product.raw?.affiliate ? <p className="mt-1 text-[10px] text-stone-400">Affiliate link</p> : null}
         {error ? <p role="alert" className="mt-1 text-[11px] text-red-700">{error}</p> : null}

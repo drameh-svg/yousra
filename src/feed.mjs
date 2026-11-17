@@ -2,6 +2,7 @@ import {checkAvailability} from './stock.mjs';
 import {curatedProducts} from './curated.mjs';
 import {store} from './store.mjs';
 import {discover,analyze} from './discovery.mjs';
+import {discoveryProvider} from './claude.mjs';
 import {rankProducts,preferenceWeights} from './rank.mjs';
 import {onboarding,sampleProducts} from './seed.mjs';
 import {config,hash,id,now,HttpError} from './util.mjs';
@@ -21,6 +22,7 @@ export function feedQuery(profile,interactions,all,round,filters={}) {
   if(prefs.preferredBrands?.length&&round%2===0)words.push(prefs.preferredBrands[Math.floor(round/2)%prefs.preferredBrands.length]);
   words.push('women US');return {query:words.filter(Boolean).join(' '),page:1+Math.floor(round/ordered.length)};
 }
+function coverageSummary(prefs,category){const r=prefs?.rules?.[category||'dress']||{};return [r.sleeves==='long'?'long sleeves':'',r.neckline==='high'?'high neckline':'',r.length==='maxi'?'maxi length':r.length==='midi'?'at least midi length':'',r.fit==='loose'?'loose fit':'',r.transparency==='opaque'?'opaque fabric':'',r.slits==='none'?'no slits':'',r.cutouts==='none'?'no cutouts':''].filter(Boolean).join(', ');}
 export async function createFeed(profile,lib,filters){
   const all=await products(),items=eligible(all,profile,lib,filters);
   const session={id:id(),owner:profile.id,filters,productIds:items.map(x=>x.id),round:0,pending:[],processed:0,version:0,lockedAt:0,stopped:config().demo,warnings:[],createdAt:now()};
@@ -45,10 +47,10 @@ export async function advanceFeed(session,profile,lib){
       if(next.round>=40){next.stopped=true;next.warnings=['You have explored this feed. Refresh later for more discoveries.'];}
       else {
         const all=await products();const {query,page}=feedQuery(profile,feedInteractions(lib),all,next.round,next.filters);
-        const cacheKey=hash(`images-v2:${query.toLowerCase()}:${page}`),cache=await store.get('cache',cacheKey);
+        const cacheKey=hash(`images-v2:${discoveryProvider()}:${query.toLowerCase()}:${page}`),cache=await store.get('cache',cacheKey);
         if(cache&&cache.expires>Date.now())next.pending=cache.productIds;
         else {
-          const found=await discover(query,page);
+          const found=await discover(query,page,{hint:coverageSummary(profile.preferences,next.filters.category)});
           for(const p of found){const old=await store.get('product',p.id);await store.put('product',p.id,old?{...p,...old,image:old.image||p.image,images:old.images?.length?old.images:p.images,thumbnail:old.thumbnail||p.thumbnail}:p);}
           next.pending=found.map(p=>p.id);
           await store.put('cache',cacheKey,{productIds:next.pending,expires:Date.now()+Number(process.env.SEARCH_TTL_HOURS||6)*3600000});

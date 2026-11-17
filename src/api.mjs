@@ -1,4 +1,5 @@
-import {checkAvailability} from './stock.mjs';
+import {checkAvailability,strictStock} from './stock.mjs';
+import {discoveryProvider} from './claude.mjs';
 import {isProductUrl} from './product-url.mjs';
 import {external,allowedByRobots} from './network.mjs';
 import {curatedProducts} from './curated.mjs';
@@ -6,9 +7,10 @@ import {createFeed,readFeed,feedView,advanceFeed} from './feed.mjs';
 import {productImage} from './media.mjs';
 import { signIn,signOut,user,refresh,assertEnvironment } from './auth.mjs';
 import { store,mutate } from './store.mjs';
+import { STAGES,TAGS,submitReview,summarize,reviewsCsv,isAdmin } from './reviews.mjs';
 import { defaultPreferences,validatePreferences,filtersFrom } from './preferences.mjs';
 import { onboarding,sampleProducts } from './seed.mjs';
-import { discover,analyze,queryFilters,refreshProductPrice } from './discovery.mjs';
+import { discover,analyze,queryFilters,refreshProductPrice,visionProvider } from './discovery.mjs';
 import { rankProducts,similarProducts } from './rank.mjs';
 import { body,config,hash,host,HttpError,id,json,now,safeUrl,text } from './util.mjs';
 
@@ -42,11 +44,11 @@ async function advance(job,uid) {
   let next={...locked,version:locked.version+1};
   try {
     if(next.phase==='discovery') {
-      const cacheKey=hash('images-v2:'+next.discoveryQuery.toLowerCase());
+      const cacheKey=hash(`images-v2:${discoveryProvider()}:`+next.discoveryQuery.toLowerCase());
       const cache=await store.get('cache',cacheKey);
       if(cache&&cache.expires>Date.now())next.analysisIds=cache.productIds;
       else {
-        const found=await discover(next.discoveryQuery);
+        const found=await discover(next.discoveryQuery,1,{hint:coverageHint(next.preferences,next.filters.category)});
         for(const p of found) {const existing=await store.get('product',p.id);await store.put('product',p.id,existing&&Date.now()-Date.parse(existing.analyzedAt||'')<86400000?existing:p);}
         next.analysisIds=found.map(x=>x.id);
         await store.put('cache',cacheKey,{productIds:next.analysisIds,expires:Date.now()+Number(process.env.SEARCH_TTL_HOURS||6)*3600000});
@@ -68,6 +70,30 @@ async function advance(job,uid) {
   await store.compareAndSwap('job',next.id,uid,locked.version,next);
   return await store.get('job',next.id,uid);
 }
+// Vercel's edge overwrites x-forwarded-for / x-real-ip, so they are trustworthy there. Elsewhere, only a
+// caller-supplied context.clientIp is trusted; otherwise everyone shares one conservative bucket.
+export function clientIp(request,context={}) {
+  if(typeof context.clientIp==='string'&&context.clientIp)return context.clientIp;
+  if(process.env.VERCEL||process.env.TRUST_PROXY_IP==='true'){
+    const forwarded=(request.headers.get('x-real-ip')||request.headers.get('x-forwarded-for')||'').split(',')[0].trim();
+    if(forwarded)return forwarded;
+  }
+  return 'deployment';
+}
+// Plain-language coverage needs, so Claude searches for pieces the shopper can actually wear.
+export function coverageHint(preferences,category) {
+  const rule=preferences?.rules?.[category||'dress']||{},parts=[];
+  if(rule.sleeves&&rule.sleeves!=='any')parts.push(rule.sleeves==='long'?'long sleeves':rule.sleeves==='elbow'?'at least elbow-length sleeves':rule.sleeves==='short'?'sleeves (not sleeveless)':'');
+  if(rule.neckline==='high')parts.push('high neckline');else if(rule.neckline==='medium')parts.push('no low or open neckline');
+  if(rule.length==='maxi')parts.push('maxi / ankle length');else if(rule.length==='midi')parts.push('at least midi length');else if(rule.length==='knee')parts.push('at least knee length');
+  if(rule.fit==='loose'||rule.fit==='wide')parts.push('loose, non-clingy fit');
+  if(rule.transparency==='opaque')parts.push('opaque fabric');
+  if(rule.slits==='none')parts.push('no slits');
+  if(rule.cutouts==='none')parts.push('no cutouts');
+  if(preferences?.pantsAllowed===false)parts.push('no pants');
+  if(preferences?.budgetMax)parts.push(`under $${preferences.budgetMax}`);
+  return parts.filter(Boolean).join(', ');
+}
 function csrf(request) {
   if(['GET','HEAD','OPTIONS'].includes(request.method))return;
   const origin=request.headers.get('origin');
@@ -79,17 +105,28 @@ export async function handle(request, context={}) {
   try {
     assertEnvironment();csrf(request);
     const url=new URL(request.url),path=url.pathname.replace(/\/$/,''),method=request.method;
-    if(path==='/api/health'&&method==='GET')return json({ok:true,authMode:config().auth,storage:config().storage,discovery:config().demo?'sample':'live',vision:!!process.env.GEMINI_API_KEY,revision:process.env.VERCEL_GIT_COMMIT_SHA?.slice(0,12)||null});
+    if(path==='/api/health'&&method==='GET')return json({ok:true,authMode:config().auth,storage:config().storage,discovery:config().demo?'sample':'live',discoveryProvider:discoveryProvider(),vision:!!visionProvider(),visionProvider:visionProvider(),strictStock:strictStock(),revision:process.env.VERCEL_GIT_COMMIT_SHA?.slice(0,12)||null});
     if(['/api/auth/google','/api/auth/callback'].includes(path))throw new HttpError(404,'Use email and password to sign in');
     if(['/api/auth/signup','/api/auth/signin'].includes(path)&&method==='POST') {
-      // Do not trust forwarded IP headers unless your hosting proxy overwrites them.
-      const ip=typeof context.clientIp==='string'?context.clientIp:'deployment';
+      const ip=clientIp(request,context);
       if(!await store.reserve(`auth:${hash(ip).slice(0,20)}`,80,1000000))throw new HttpError(429,'Too many sign-in attempts today');
       return await signIn(await body(request),path.endsWith('signup'));
     }
     if(path==='/api/auth/signout'&&method==='POST')return await signOut(request);
     if(path==='/api/auth/refresh'&&method==='POST')return await refresh(request);
+    if(path==='/api/reviews/form'&&method==='GET')return json({stages:STAGES,tags:TAGS});
+    if(path==='/api/reviews'&&method==='POST'){
+      const account=await user(request).catch(()=>null);
+      return await submitReview(await body(request),{userAccount:account,ip:clientIp(request,context),userAgent:request.headers.get('user-agent')});
+    }
     const u=await user(request);
+    if(path==='/api/admin/status'&&method==='GET')return json({admin:isAdmin(u)});
+    if(path==='/api/admin/reviews'&&method==='GET'){
+      if(!isAdmin(u))throw new HttpError(403,'Admin access required. Add your account email to ADMIN_EMAILS.');
+      const reviews=await store.list('review',undefined,5000);
+      if(url.searchParams.get('format')==='csv')return new Response(reviewsCsv(reviews),{headers:{'content-type':'text/csv; charset=utf-8','content-disposition':`attachment; filename="yousra-reviews-${now().slice(0,10)}.csv"`,'cache-control':'no-store'}});
+      return json({summary:summarize(reviews),reviews});
+    }
     if(path==='/api/me'&&method==='GET')return json({user:u,profile:await profile(u.id),localTest:config().auth==='local'});
     if(path==='/api/onboarding'&&method==='GET')return json({photos:onboarding,required:15});
     if(path==='/api/profile'&&method==='PUT') {
@@ -129,7 +166,7 @@ export async function handle(request, context={}) {
       const preferences=data.preferences?validatePreferences(data.preferences):p.preferences;
       const filters=queryFilters(query,data.filters||{});
       const key=id(),job={id:key,owner:u.id,query,discoveryQuery:`${query} ${filters.color||''} ${filters.category||'women clothing'} ${preferences.rules?.[filters.category]?.sleeves==='long'?'long sleeve':''} ${preferences.styles.slice(0,2).join(' ')} US`.trim(),filters,preferences,phase:'discovery',status:'pending',productIds:[],processed:0,warnings:[],createdAt:now(),demo:config().demo,version:0};
-      if(config().demo) {job.productIds=sampleProducts.map(x=>x.id);job.status='complete';job.phase='analysis';job.warnings=['Sample catalog only. Add a Serper API key for live web discovery.'];}
+      if(config().demo) {job.productIds=sampleProducts.map(x=>x.id);job.status='complete';job.phase='analysis';job.warnings=['Sample catalog only. Add ANTHROPIC_API_KEY (or SERPER_API_KEY) for live web discovery.'];}
       // Return cached catalog immediately; advancing the job performs network work.
       else {job.productIds=(await catalog()).map(x=>x.id);}
       await store.put('job',key,job,u.id);
@@ -199,7 +236,7 @@ export async function handle(request, context={}) {
       const events=await store.list('event',u.id,1000);return json({clicks:events.filter(e=>!e.demo).length,sampleClicks:events.filter(e=>e.demo).length,likes:Object.values(lib.reactions).filter(r=>r.liked).length,collections:lib.collections.length});
     }
     if(path==='/api/admin/metrics'&&method==='GET') {
-      if(!(process.env.ADMIN_USER_IDS||'').split(',').includes(u.id))throw new HttpError(403,'Admin access required');
+      if(!isAdmin(u))throw new HttpError(403,'Admin access required');
       const events=(await store.list('event',undefined,10000)).filter(e=>!e.demo);
       const brands={};for(const e of events){brands[e.store]??={clicks:0,users:new Set()};brands[e.store].clicks++;brands[e.store].users.add(e.userId);}
       return json({outboundClicks:events.length,uniqueClickers:new Set(events.map(e=>e.userId)).size,byStore:Object.entries(brands).map(([store,m])=>({store,clicks:m.clicks,uniqueClickers:m.users.size})),providerUsage:await store.usage(),window:'Most recent 10,000 events; clicks are not purchases.'});

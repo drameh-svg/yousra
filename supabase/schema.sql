@@ -75,3 +75,24 @@ where kind='event' and payload->>'type'='outbound_click'
 group by payload->>'store';
 revoke all on public.brand_traction from anon,authenticated;
 grant select on public.brand_traction to service_role;
+
+-- Journey reviews from /feedback. Rows live in records (kind='review'); this view makes them easy to read
+-- in the Supabase table editor / SQL editor. The team dashboard is /admin/reviews (ADMIN_EMAILS).
+create or replace view public.journey_reviews with (security_invoker=true) as
+select (payload->>'createdAt')::timestamptz as created_at,
+       payload->>'name' as name,
+       coalesce(payload->>'email',payload->>'contact') as email,
+       (payload->>'overall')::int as overall,
+       (payload->>'recommend')::int as recommend_0_10,
+       (payload->>'modestyAccuracy')::int as coverage_match,
+       payload->>'foundPiece' as found_piece,
+       payload->>'loved' as loved,
+       payload->>'improve' as improve,
+       payload->>'wish' as wish,
+       payload->'stages' as stages,
+       (payload->>'quoteOk')::boolean as ok_to_quote
+from public.records
+where kind='review'
+order by 1 desc;
+revoke all on public.journey_reviews from anon,authenticated;
+grant select on public.journey_reviews to service_role;

@@ -86,6 +86,7 @@ export async function mutate(kind, key, owner, initial, update) {
 }
 export async function reserve(provider) {
   const prefix = provider.toUpperCase();
-  if (!await store.reserve(provider, Number(process.env[`${prefix}_DAILY_LIMIT`] || (provider==='serper'?40:60)), Number(process.env[`${prefix}_TOTAL_LIMIT`] || (provider==='serper'?200:300))))
-    throw new HttpError(429, `${provider} usage cap reached. Cached products are still available.`);
+  const defaults={serper:[40,200],gemini:[60,300],claude_search:[60,1500],claude_vision:[400,10000]}[provider]||[60,300];
+  if (!await store.reserve(provider, Number(process.env[`${prefix}_DAILY_LIMIT`] || defaults[0]), Number(process.env[`${prefix}_TOTAL_LIMIT`] || defaults[1])))
+    throw new HttpError(429, `${provider.replace('_',' ')} usage cap reached. Cached products are still available.`);
 }

@@ -12,7 +12,7 @@ import { handle } from '../src/api.mjs';
 import { store } from '../src/store.mjs';
 
 process.env.AUTH_MODE='local';process.env.STORAGE='local';process.env.NODE_ENV='test';
-delete process.env.SERPER_API_KEY;delete process.env.GEMINI_API_KEY;
+delete process.env.SERPER_API_KEY;delete process.env.GEMINI_API_KEY;delete process.env.ANTHROPIC_API_KEY;delete process.env.DISCOVERY_PROVIDER;delete process.env.VISION_PROVIDER;delete process.env.REQUIRE_VERIFIED_STOCK;
 process.env.LOCAL_DB_PATH=join(await mkdtemp(join(tmpdir(),'yousra-test-')),'test.sqlite');
 process.env.APP_ORIGIN='http://localhost:3000';
 const prefs=()=>{const p=defaultPreferences();p.rules.dress.sleeves='long';p.rules.dress.length='maxi';return p;};
@@ -168,11 +168,11 @@ test('explicit sheer fabric, cutouts, slits and three-quarter sleeves cannot byp
  assert.equal(inferAttributes('Opaque long sleeve top without cutouts').attributes.cutouts,'none');
 });
 
-test('live feed expands with indexed images, deduplicates products and stops at provider caps',async()=>{
+test('strict stock mode: live feed expands with indexed images, deduplicates products and stops at provider caps',async()=>{
  const originalFetch=globalThis.fetch,oldKey=process.env.SERPER_API_KEY,oldLimit=process.env.SERPER_DAILY_LIMIT;
  let imageCalls=0;
  try{
-  process.env.SERPER_API_KEY='test-only-key';
+  process.env.SERPER_API_KEY='test-only-key';process.env.REQUIRE_VERIFIED_STOCK='true';
   globalThis.fetch=async(url,options)=>{
    assert.ok(String(url).startsWith('https://google.serper.dev/'));
    if(String(url).endsWith('/images')){
@@ -209,6 +209,7 @@ test('live feed expands with indexed images, deduplicates products and stops at 
   globalThis.fetch=originalFetch;
   if(oldKey===undefined)delete process.env.SERPER_API_KEY;else process.env.SERPER_API_KEY=oldKey;
   if(oldLimit===undefined)delete process.env.SERPER_DAILY_LIMIT;else process.env.SERPER_DAILY_LIMIT=oldLimit;
+  delete process.env.REQUIRE_VERIFIED_STOCK;
  }
 });
 

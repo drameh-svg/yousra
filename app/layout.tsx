@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Instrument_Serif, Atkinson_Hyperlegible } from "next/font/google";
+import { Instrument_Serif } from "next/font/google";
 import { SessionProvider } from "@/components/session-provider";
 import { Nav } from "@/components/nav";
 import "./globals.css";
@@ -12,13 +12,6 @@ const instrumentSerif = Instrument_Serif({
   display: "swap",
 });
 
-const hyperlegible = Atkinson_Hyperlegible({
-  subsets: ["latin"],
-  weight: ["400", "700"],
-  variable: "--font-sans",
-  display: "swap",
-});
-
 export const metadata: Metadata = {
   title: "Yousra — Modest Shopping Made Easy",
   description:
@@ -28,8 +21,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${instrumentSerif.variable} ${hyperlegible.variable}`}>
-      <body style={{ fontFamily: "var(--font-sans, 'Atkinson Hyperlegible', system-ui, sans-serif)", background: "var(--bg, #F5F5F5)", color: "var(--fg, #352D27)" }}>
+    <html lang="en" className={instrumentSerif.variable}>
+      <body style={{ fontFamily: "'Alte Haas Grotesk', system-ui, sans-serif", background: "var(--bg, #F5F5F5)", color: "var(--fg, #352D27)" }}>
         <SessionProvider><Nav />{children}</SessionProvider>
       </body>
     </html>

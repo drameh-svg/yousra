@@ -1,18 +1,14 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import {DiscoveryGrid} from "@/components/discovery-grid";
-import { alternatives } from "@/lib/explore-data";
 
 interface Props { params: Promise<{ slug: string }> }
 
-export function generateStaticParams() {
-  return alternatives.map((a) => ({ slug: a.slug }));
-}
+export const dynamic = "force-dynamic";
 
 export default async function AlternativesPage({ params }: Props) {
   const { slug } = await params;
-  const alt = alternatives.find((a) => a.slug === slug);
-  const brandName = alt?.brand ?? slug.replace(/-/g, " ");
+  const brandName = slug.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
 
   return (
     <main style={{ minHeight: "100vh", background: "var(--bg)", padding: "28px 20px 80px" }}>
@@ -28,7 +24,7 @@ export default async function AlternativesPage({ params }: Props) {
           {brandName}
         </h1>
         <p style={{ fontSize: "13px", color: "#637180", marginBottom: "8px", lineHeight: 1.6, maxWidth: "480px" }}>
-          {alt?.description ?? `Modest pieces with a similar feel to styles from ${brandName}.`}
+          {`Modest pieces with a similar feel to styles from ${brandName}.`}
         </p>
         <p style={{ fontSize: "11px", color: "#637180", marginBottom: "28px", fontStyle: "italic" }}>
           These are independent suggestions. Yousra is not affiliated with {brandName}.

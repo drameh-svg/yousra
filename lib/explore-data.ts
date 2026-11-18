@@ -31,22 +31,16 @@ export const categories = [
     count: 91,
   },
   {
-    slug: "activewear",
-    label: "Activewear",
-    image: PIN("55/df/40/55df4051452da2128c7bc42f1ea53561.jpg"),
-    count: 27,
+    slug: "pants",
+    label: "Pants",
+    image: PIN("48/6b/2e/486b2e6d0ac7a6e3f8c27caef5b62d0b.jpg"),
+    count: 44,
   },
   {
-    slug: "swimwear",
-    label: "Swimwear",
-    image: PIN("32/23/a5/3223a561f56de893b21b9c833aefca28.jpg"),
-    count: 19,
-  },
-  {
-    slug: "occasionwear",
-    label: "Occasionwear",
-    image: PIN("47/2d/8a/472d8affc7c65cd0649978089c0c8a1e.jpg"),
-    count: 34,
+    slug: "abayas",
+    label: "Abayas",
+    image: PIN("f6/e6/42/f6e642d74775c03f1b9dfac7bc50b5c1.jpg"),
+    count: 31,
   },
 ];
 
@@ -106,24 +100,3 @@ export const trending = [
   products.find((p) => p.id === "16")!, // RELABEL Striped Pleated Henley
 ];
 
-// ── Modest alternatives ────────────────────────────────────────────────────
-export const alternatives = [
-  {
-    brand: "Zara",
-    description: "Love Zara's clean lines and minimal cuts? Find the same energy with more coverage.",
-    image: PIN("2c/cb/53/2ccb5344fe566f8cfbf2d1a02f805454.jpg"),
-    slug: "zara",
-  },
-  {
-    brand: "& Other Stories",
-    description: "The editorial Scandinavian aesthetic, in silhouettes that go further.",
-    image: PIN("97/d3/c9/97d3c9be8078f8eb5cdca36343cea0fc.jpg"),
-    slug: "and-other-stories",
-  },
-  {
-    brand: "Reformation",
-    description: "Feminine, sustainable, and flattering — with the coverage you choose.",
-    image: PIN("3a/55/29/3a55298496faa685c59b1bdde0aec1b8.jpg"),
-    slug: "reformation",
-  },
-];

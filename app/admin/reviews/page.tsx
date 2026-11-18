@@ -13,6 +13,7 @@ interface Summary{count:number;responses:number;legacy:number;overall:number|nul
 interface LabelSummary{summary:{products:number;labels:number;agreement:number|null;confusion:Record<string,Record<string,number>>}}
 const serif:CSSProperties={fontFamily:"var(--font-serif,'Instrument Serif',Georgia,serif)",fontWeight:400};
 const words=['','Rough','Meh','Okay','Lovely','Pure sutra'];
+const stars=(n:number)=>'★'.repeat(n)+'☆'.repeat(5-n);
 async function download(path:string,filename:string){const r=await fetch(path,{credentials:'same-origin'});if(!r.ok)return;const url=URL.createObjectURL(await r.blob());const a=document.createElement('a');a.href=url;a.download=filename;a.click();URL.revokeObjectURL(url);}
 const today=()=>new Date().toISOString().slice(0,10);
 
@@ -43,7 +44,7 @@ export default function ReviewsAdmin(){
   {!s?<p className="text-sm text-stone-400">Loading feedback…</p>:<>
    <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-5">{[
     ['Responses',String(s.count),s.legacy?`${s.legacy} from the old survey`:''],
-    ['Overall feeling',s.overall!==null?`${s.overall} / 5`:'—',''],
+    ['Star rating',s.overall!==null?`${s.overall} ★`:'—','average out of 5'],
     ['“Very disappointed”',s.veryDisappointed!==null?`${s.veryDisappointed}%`:'—',s.pmfResponses?`of ${s.pmfResponses} · 40%+ signals product-market fit`:'if Yousra disappeared'],
     ['Pieces rated',String(l?.labels??s.labeled),l?.products?`${l.products} products`:''],
     ['AI agrees with shoppers',l?.agreement!==null&&l?.agreement!==undefined?`${l.agreement}%`:'—','coverage level, per product'],
@@ -63,7 +64,7 @@ export default function ReviewsAdmin(){
    </div>:null}
    <input className={fieldClass+' mb-4 max-w-sm'} placeholder="Search responses" value={query} onChange={e=>setQuery(e.target.value)} aria-label="Search responses"/>
    {!shown.length?<p className="py-10 text-center text-sm text-stone-400">{data.reviews.length?'No responses match that search.':'No feedback yet. Share /feedback with your testers.'}</p>:<div className="space-y-3">{shown.map(r=><article key={r.id} className="rounded-2xl border border-stone-100 bg-white p-5 shadow-sm">
-    <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2"><p className="text-sm font-medium text-stone-800">{r.name||'Anonymous'} <span className="font-normal text-stone-400">{r.email||r.contact||''}</span></p><p className="text-xs text-stone-400">{new Date(r.createdAt).toLocaleString('en-US')} · {words[r.overall]}{r.disappointed?` · ${r.disappointed} disappointed`:''}{r.labeled?` · rated ${r.labeled}`:''}{r.version!==2?' · old survey':''}</p></div>
+    <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2"><p className="text-sm font-medium text-stone-800">{r.name||'Anonymous'} <span className="font-normal text-stone-400">{r.email||r.contact||''}</span></p><p className="text-xs text-stone-400">{new Date(r.createdAt).toLocaleString('en-US')} · <span className="text-[#B08A3A]" aria-label={`${r.overall} of 5 stars`}>{stars(r.overall)}</span> {words[r.overall]}{r.disappointed?` · ${r.disappointed} disappointed`:''}{r.labeled?` · rated ${r.labeled}`:''}{r.version!==2?' · old survey':''}</p></div>
     {r.sentence?<p style={serif} className="mb-3 text-xl leading-snug text-stone-800">“{r.sentence}”</p>:null}
     {r.version===2?<div className="space-y-1 text-xs text-stone-500">
      {r.liked?.length?<p><span className="text-stone-400">Liked:</span> {r.liked.map(x=>label(s.liked,x)).join(', ')}</p>:null}

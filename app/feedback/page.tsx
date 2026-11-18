@@ -3,7 +3,7 @@
 // dashboard and the form always use the same lists.
 import {useEffect,useState,type CSSProperties,type ReactNode} from 'react';
 import Link from 'next/link';
-import {ArrowLeft,ArrowRight,Check,Hammer,Plus,Send,Sparkles} from 'lucide-react';
+import {ArrowLeft,ArrowRight,Check,Hammer,Plus,Send,Sparkles,Star} from 'lucide-react';
 import {api} from '@/lib/api';
 import {useSession} from '@/components/session-provider';
 import {CoverageGame} from '@/components/coverage-game';
@@ -13,7 +13,12 @@ interface Option{id:string;label:string;emoji?:string}
 interface Survey{version:number;working:Option[];inProgress:Option[];ideas:Option[];priorities:Option[];sites:Option[];disappointed:Option[];starters:string[]}
 const ink='#352D27',muted='#637180',sage='#9FB08F',cream='#FAF8F5';
 const serif:CSSProperties={fontFamily:"var(--font-serif,'Instrument Serif',Georgia,serif)",fontWeight:400};
-const FACES=[{n:1,face:'😣',word:'Rough'},{n:2,face:'😕',word:'Meh'},{n:3,face:'🙂',word:'Okay'},{n:4,face:'😊',word:'Lovely'},{n:5,face:'🤍',word:'Pure sutra'}];
+const WORDS=['','Rough','Meh','Okay','Lovely','Pure sutra'];
+function StarRating({value,onChange,label}:{value:number|null;onChange:(n:number|null)=>void;label:string}){
+ const [hover,setHover]=useState<number|null>(null),shown=hover??value??0;
+ return <div><div role="radiogroup" aria-label={label} className="flex items-center gap-1" onMouseLeave={()=>setHover(null)}>{[1,2,3,4,5].map(n=>{const on=value===n;return <button key={n} type="button" role="radio" aria-checked={on} aria-label={`${n} star${n===1?'':'s'}: ${WORDS[n]}`} onClick={()=>onChange(on?null:n)} onMouseEnter={()=>setHover(n)} onFocus={()=>setHover(n)} onBlur={()=>setHover(null)} className="rounded-full p-1 transition-transform hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-300"><Star size={36} strokeWidth={1.5} className={`transition-colors ${n<=shown?'fill-[#C9A24A] text-[#C9A24A]':'text-stone-300'}`}/></button>})}</div>
+  <p aria-live="polite" className="mt-1 h-5 text-sm text-stone-500">{shown?`${shown} of 5 · ${WORDS[shown]}`:'Tap a star'}</p></div>;
+}
 const STEPS=['Loved','Wishlist','Priorities','Shopping','Coverage','Your words'] as const;
 const toggle=(list:string[],id:string)=>list.includes(id)?list.filter(x=>x!==id):[...list,id];
 
@@ -51,7 +56,7 @@ export default function FeedbackPage(){
  const go=(n:number)=>{setStep(n);setError('');window.scrollTo({top:0,behavior:'smooth'});};
  const rank=(id:string)=>setPriorities(p=>p.includes(id)?p.filter(x=>x!==id):p.length<3?[...p,id]:p);
  async function submit(){
-  if(overall===null){setError('Tap a face to tell us how Yousra felt overall.');return;}
+  if(overall===null){setError('Tap a star to rate Yousra overall.');return;}
   if(sentence.trim().length<3){setError('Write one sentence about how you liked the MVP.');return;}
   setBusy(true);setError('');
   try{await api('/reviews','POST',{overall,sentence,liked,wanted,wantedOther,priorities,sites,sitesOther,disappointed:disappointed||null,labeled,name,contact,quoteOk});setSent(true);window.scrollTo({top:0,behavior:'smooth'});}
@@ -119,7 +124,7 @@ export default function FeedbackPage(){
    </Card>:null}
 
    {step===5?<Card kicker="Last one" title="In one sentence, how did you like the MVP?" sub="Honest beats polite. Tap a starter if you're stuck.">
-    <div className="mb-6"><p className="mb-2 text-sm font-medium text-stone-700">Overall, Yousra felt… <span className="text-red-700">*</span></p><div role="radiogroup" aria-label="Overall feeling" className="flex flex-wrap gap-1.5">{FACES.map(f=>{const on=overall===f.n;return <button key={f.n} type="button" role="radio" aria-checked={on} onClick={()=>setOverall(on?null:f.n)} className={`flex min-w-[64px] flex-1 flex-col items-center gap-0.5 rounded-2xl border px-2 py-2 text-[11px] transition-all ${on?'border-stone-900 bg-stone-900 text-white -translate-y-0.5':'border-stone-200 bg-white text-stone-500 hover:border-stone-400'}`}><span aria-hidden className="text-lg leading-none">{f.face}</span>{f.word}</button>})}</div></div>
+    <div className="mb-6"><p className="mb-2 text-sm font-medium text-stone-700">How would you rate Yousra overall? <span className="text-red-700">*</span></p><StarRating label="Overall rating" value={overall} onChange={setOverall}/></div>
     <label className="block text-sm font-medium text-stone-700">Your sentence <span className="text-red-700">*</span><textarea className={fieldClass+' mt-1.5 min-h-[84px]'} maxLength={300} value={sentence} onChange={e=>setSentence(e.target.value)} placeholder="Yousra made it easy to find a maxi dress I'd actually wear…"/></label>
     <div className="mt-2 flex flex-wrap gap-1.5">{survey.starters.map(s=><button key={s} type="button" onClick={()=>setSentence(v=>v.trim()?v:s+' ')} className="rounded-full bg-stone-100 px-3 py-1 text-[11px] text-stone-600 hover:bg-stone-200">{s}</button>)}</div>
     <p className="mt-1 text-right text-[11px] text-stone-400">{sentence.length}/300</p>

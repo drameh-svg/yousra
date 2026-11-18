@@ -5,8 +5,8 @@ import { appendCookies, config, cookie, cookies, hash, HttpError, id, json, now,
 export function assertEnvironment() {
   const c = config();
   if (process.env.NODE_ENV === 'production' && (c.auth !== 'supabase' || c.storage !== 'supabase') && process.env.ALLOW_LOCAL_PRODUCTION !== 'true')
-    throw new Error('Production requires AUTH_MODE=supabase and STORAGE=supabase. Local mode is for testing.');
-  if (c.auth === 'supabase' && c.storage !== 'supabase') throw new Error('Supabase authentication requires Supabase storage.');
+    throw new HttpError(503, 'Production requires AUTH_MODE=supabase and STORAGE=supabase. Local mode is for testing.');
+  if (c.auth === 'supabase' && c.storage !== 'supabase') throw new HttpError(503, 'Supabase authentication requires Supabase storage.');
 }
 export async function user(request) {
   const jar = cookies(request);

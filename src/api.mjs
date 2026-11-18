@@ -3,11 +3,12 @@ import {discoveryProvider} from './claude.mjs';
 import {isProductUrl} from './product-url.mjs';
 import {external,allowedByRobots} from './network.mjs';
 import {curatedProducts} from './curated.mjs';
-import {createFeed,readFeed,feedView,advanceFeed} from './feed.mjs';
+import {createFeed,readFeed,feedView,advanceFeed,warmRound} from './feed.mjs';
 import {productImage} from './media.mjs';
 import { signIn,signOut,user,refresh,assertEnvironment } from './auth.mjs';
 import { store,mutate } from './store.mjs';
 import { SURVEY,submitReview,summarize,reviewsCsv,isAdmin } from './reviews.mjs';
+import { background } from './background.mjs';
 import { labelingItems,submitLabels,labelsJsonl,labelsCsv,labelAgreement } from './labels.mjs';
 import { defaultPreferences,validatePreferences,filtersFrom } from './preferences.mjs';
 import { onboarding,sampleProducts } from './seed.mjs';
@@ -148,7 +149,10 @@ export async function handle(request, context={}) {
         }
         if(data.completeOnboarding){if((data.styleVotes===undefined&&p.swipes.length!==15)||!data.preferences)throw new HttpError(400,'Style choices and preferences required');p.onboarded=true;}
         return p;
-      });return json({profile:updated});
+      });
+      // Onboarding just finished: start the first two feed searches now, while the For You page is loading.
+      if(data.completeOnboarding&&updated.onboarded&&!config().demo&&process.env.FEED_PREWARM!=='false')background(library(u.id).then(lib=>Promise.allSettled([warmRound(updated,lib,0),warmRound(updated,lib,1)])));
+      return json({profile:updated});
     }
     if(path==='/api/admin/labels'&&method==='GET'){
       if(!isAdmin(u))throw new HttpError(403,'Admin access required. Add your account email to ADMIN_EMAILS.');
@@ -162,18 +166,18 @@ export async function handle(request, context={}) {
     if(path==='/api/labeling'&&method==='POST')return json(await submitLabels(await body(request),u),201);
     const photo=path.match(/^\/api\/products\/([\w-]+)\/image$/);
     if(photo&&method==='GET'){const item=await product(photo[1]);if(!item)throw new HttpError(404,'Product not found');return productImage(item,Math.max(0,Math.min(5,Number(url.searchParams.get('index'))||0)));}
-    const p=await profile(u.id),lib=await library(u.id);
+    const [p,lib]=await Promise.all([profile(u.id),library(u.id)]);
     const libraryAction=path.startsWith('/api/collections')||path==='/api/reactions'||/^\/api\/products\/[\w-]+\/reaction$/.test(path);
     if(!p.onboarded&&!libraryAction)throw new HttpError(409,'Complete onboarding first');
     if(path==='/api/feed'&&method==='GET') {
-      const session=await createFeed(p,lib,filtersFrom(Object.fromEntries(url.searchParams)));
-      const view=await feedView(session,p,lib,url);await logImpressions(u.id,session.id,url,view.items);return json({...view,items:view.items.map(publicProduct)});
+      const {session,ranked}=await createFeed(p,lib,filtersFrom(Object.fromEntries(url.searchParams)));
+      const view=await feedView(session,p,lib,url,{ranked});background(logImpressions(u.id,session.id,url,view.items));return json({...view,items:view.items.map(publicProduct)});
     }
     const feedMatch=path.match(/^\/api\/feed\/([\w-]+)(\/advance)?$/);
     if(feedMatch&&((feedMatch[2]&&method==='POST')||(!feedMatch[2]&&method==='GET'))){
       let session=await readFeed(feedMatch[1],u.id);
       if(feedMatch[2])session=await advanceFeed(session,p,lib);
-      const view=await feedView(session,p,lib,url);if(!feedMatch[2])await logImpressions(u.id,session.id,url,view.items);return json({...view,items:view.items.map(publicProduct)});
+      const view=await feedView(session,p,lib,url);if(!feedMatch[2])background(logImpressions(u.id,session.id,url,view.items));return json({...view,items:view.items.map(publicProduct)});
     }
     if(path==='/api/search'&&method==='POST') {
       if(!await store.reserve(`search:${u.id}`,40,100000))throw new HttpError(429,'Daily search limit reached');

@@ -5,6 +5,7 @@ import { external, allowedByRobots } from './network.mjs';
 import { categories, choices, filtersFrom } from './preferences.mjs';
 import { hash, host, HttpError, now, safeUrl, text } from './util.mjs';
 import { claudeVision, claudeDiscover, discoveryProvider } from './claude.mjs';
+import { background } from './background.mjs';
 
 const COLORS=['black','white','blue','navy','green','pink','red','brown','beige','cream','gray','purple','yellow'];
 const STYLES=['minimal','classic','casual','romantic','streetwear','elegant','boho','sporty'];
@@ -100,8 +101,21 @@ export async function discover(query, page=1, {hint=''}={}) {
   if(!payloads.length)throw settled[0].reason;
   // Claude payloads come first so its curated picks win ties; Serper adds images and indexed prices.
   const found=discoveryCandidates(payloads).slice(0,provider==='both'?Math.min(20,limit+6):limit);
-  // Claude finds pages, not photos: read each imageless page once (in parallel) for its photo, price and stock.
-  const enriched=await Promise.all(found.map(p=>p.image?p:readRetailerPage(p).catch(()=>p)));
+  // Imageless results need their retailer page read for a photo. Wait briefly so slow retailers don't hold up
+  // the whole batch; late pages finish in the background and the piece appears on the next load.
+  const wait=Number(process.env.ENRICH_WAIT_MS||2500);
+  const enriched=await Promise.all(found.map(p=>{
+    if(p.image)return p;
+    const read=readRetailerPage(p).catch(()=>p);
+    let timedOut=false;
+    background(read.then(async e=>{
+      if(!timedOut||!e.image||e.productPage===false)return;
+      const old=await store.get('product',e.id);
+      await store.put('product',e.id,old?{...e,...old,image:old.image||e.image,images:old.images?.length?old.images:e.images}:e);
+    }));
+    let timer;
+    return Promise.race([read.finally(()=>clearTimeout(timer)),new Promise(r=>{timer=setTimeout(()=>{timedOut=true;r(p);},wait);})]);
+  }));
   return enriched.filter(p=>p.productPage!==false&&p.availability!=='out_of_stock');
 }
 // Fetch and merge a retailer product page (JSON-LD/meta). Never pairs a price with another source's currency.

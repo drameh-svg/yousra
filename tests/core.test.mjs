@@ -11,7 +11,7 @@ import { extractProduct,queryFilters,discoveryCandidates,inferAttributes } from 
 import { handle } from '../src/api.mjs';
 import { store } from '../src/store.mjs';
 
-process.env.AUTH_MODE='local';process.env.STORAGE='local';process.env.NODE_ENV='test';
+process.env.AUTH_MODE='local';process.env.STORAGE='local';process.env.NODE_ENV='test';process.env.CATALOG_CACHE_MS='0';
 delete process.env.SERPER_API_KEY;delete process.env.GEMINI_API_KEY;delete process.env.ANTHROPIC_API_KEY;delete process.env.DISCOVERY_PROVIDER;delete process.env.VISION_PROVIDER;delete process.env.REQUIRE_VERIFIED_STOCK;
 process.env.LOCAL_DB_PATH=join(await mkdtemp(join(tmpdir(),'yousra-test-')),'test.sqlite');
 process.env.APP_ORIGIN='http://localhost:3000';
@@ -172,7 +172,7 @@ test('strict stock mode: live feed expands with indexed images, deduplicates pro
  const originalFetch=globalThis.fetch,oldKey=process.env.SERPER_API_KEY,oldLimit=process.env.SERPER_DAILY_LIMIT;
  let imageCalls=0;
  try{
-  process.env.SERPER_API_KEY='test-only-key';process.env.REQUIRE_VERIFIED_STOCK='true';
+  process.env.SERPER_API_KEY='test-only-key';process.env.REQUIRE_VERIFIED_STOCK='true';process.env.FEED_PREWARM='false';
   globalThis.fetch=async(url,options)=>{
    assert.ok(String(url).startsWith('https://google.serper.dev/'));
    if(String(url).endsWith('/images')){
@@ -209,7 +209,7 @@ test('strict stock mode: live feed expands with indexed images, deduplicates pro
   globalThis.fetch=originalFetch;
   if(oldKey===undefined)delete process.env.SERPER_API_KEY;else process.env.SERPER_API_KEY=oldKey;
   if(oldLimit===undefined)delete process.env.SERPER_DAILY_LIMIT;else process.env.SERPER_DAILY_LIMIT=oldLimit;
-  delete process.env.REQUIRE_VERIFIED_STOCK;
+  delete process.env.REQUIRE_VERIFIED_STOCK;delete process.env.FEED_PREWARM;
  }
 });
 
@@ -327,4 +327,30 @@ test('favorite brands and coverage presets persist in account preferences',async
  const p=defaultPreferences();p.styles=['casual'];p.preferredBrands=['Uniqlo'];p.budgetMax=50;
  assert.equal((await a('/profile','PUT',{preferences:p,coveragePreset:'Moderate',styleVotes:[],completeOnboarding:true})).status,200);
  const me=(await a('/me')).data;assert.deepEqual(me.profile.preferences.preferredBrands,['uniqlo']);assert.equal(me.profile.coveragePreset,'Moderate');assert.equal(me.profile.preferences.budgetMax,50);
+});
+
+test('fast first load: onboarding warms the first searches and the feed does not wait on stock checks',async()=>{
+ const {settleBackground}=await import('../src/background.mjs');
+ const originalFetch=globalThis.fetch,oldKey=process.env.SERPER_API_KEY;let calls=0;
+ try{
+  process.env.SERPER_API_KEY='test-only-key';
+  globalThis.fetch=async url=>{
+   if(String(url).endsWith('/images')){calls++;return Response.json({images:[{title:'Long sleeve maxi dress',link:`https://warm.invalid/products/w-${calls}`,imageUrl:`https://cdn.invalid/w${calls}.jpg`}]});}
+   return Response.json({});
+  };
+  const a=await client();
+  await a('/auth/signup','POST',{email:'warm-feed@example.com',password:'test-password-6'});
+  await a('/profile','PUT',{swipes,completeOnboarding:true,preferences:{...defaultPreferences(),styles:['sporty'],preferredBrands:['WarmTestBrand']}});
+  await settleBackground();
+  assert.equal(calls,2,'rounds 0 and 1 searched right after onboarding');
+  const started=Date.now();
+  const feed=(await a('/feed?limit=48')).data;
+  let ids=feed.items.map(x=>x.store),offset=feed.nextOffset;
+  while(offset!==null){const page=(await a(`/feed/${feed.feedId}?offset=${offset}&limit=48`)).data;ids=[...ids,...page.items.map(x=>x.store)];offset=page.nextOffset;}
+  assert.ok(ids.includes('warm.invalid'),'warmed pieces are in the feed from the first load');
+  assert.ok(Date.now()-started<3000,'first load does not wait on retailer stock checks');
+  await a(`/feed/${feed.feedId}/advance`,'POST',{});
+  assert.equal(calls,2,'first advance reuses the warmed search instead of searching again');
+  await settleBackground();
+ }finally{globalThis.fetch=originalFetch;if(oldKey===undefined)delete process.env.SERPER_API_KEY;else process.env.SERPER_API_KEY=oldKey;}
 });

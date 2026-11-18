@@ -11,7 +11,7 @@ import { extractProduct,queryFilters,discoveryCandidates,inferAttributes } from 
 import { handle } from '../src/api.mjs';
 import { store } from '../src/store.mjs';
 
-process.env.AUTH_MODE='local';process.env.STORAGE='local';process.env.NODE_ENV='test';process.env.CATALOG_CACHE_MS='0';
+process.env.AUTH_MODE='local';process.env.STORAGE='local';process.env.NODE_ENV='test';process.env.CATALOG_CACHE_MS='0';process.env.PRIORITY_SITES='';
 delete process.env.SERPER_API_KEY;delete process.env.GEMINI_API_KEY;delete process.env.ANTHROPIC_API_KEY;delete process.env.DISCOVERY_PROVIDER;delete process.env.VISION_PROVIDER;delete process.env.REQUIRE_VERIFIED_STOCK;
 process.env.LOCAL_DB_PATH=join(await mkdtemp(join(tmpdir(),'yousra-test-')),'test.sqlite');
 process.env.APP_ORIGIN='http://localhost:3000';

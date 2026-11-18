@@ -6,6 +6,8 @@ import { categories, choices, filtersFrom } from './preferences.mjs';
 import { hash, host, HttpError, now, safeUrl, text } from './util.mjs';
 import { claudeVision, claudeDiscover, discoveryProvider } from './claude.mjs';
 import { background } from './background.mjs';
+import { prioritySites } from './sites.mjs';
+export { prioritySites };
 
 const COLORS=['black','white','blue','navy','green','pink','red','brown','beige','cream','gray','purple','yellow'];
 const STYLES=['minimal','classic','casual','romantic','streetwear','elegant','boho','sporty'];
@@ -90,17 +92,28 @@ export function discoveryCandidates(payloads) {
   // Listings with an image (or Claude's curated picks, whose images come from the retailer page) come first.
   return [...candidates.values()].sort((a,b)=>Number(!!b.image||b.discoverySource==='claude')-Number(!!a.image||a.discoverySource==='claude'));
 }
+const onSite=(p,site)=>{const h=host(p.url),s=String(p.store||'').toLowerCase();return h===site||h.endsWith(`.${site}`)||s===site.split('.')[0];};
+// Keep the best-ranked order, but reserve up to PRIORITY_SITE_MIN slots for each priority retailer.
+export function keepPrioritySites(candidates,limit,sites=prioritySites()) {
+  const min=Math.max(0,Number(process.env.PRIORITY_SITE_MIN??3)),reserved=new Set();
+  for(const site of sites)candidates.filter(p=>onSite(p,site)).slice(0,min).forEach(p=>reserved.add(p.id));
+  const rest=candidates.filter(p=>!reserved.has(p.id)).slice(0,Math.max(0,limit-reserved.size));
+  const keep=new Set([...reserved,...rest.map(p=>p.id)]);
+  return candidates.filter(p=>keep.has(p.id)).slice(0,Math.max(limit,reserved.size));
+}
 export async function discover(query, page=1, {hint=''}={}) {
   const provider=discoveryProvider(),limit=Math.min(20,Number(process.env.MAX_CANDIDATES||12));
   const jobs=[];
   if(provider==='claude'||provider==='both')jobs.push(claudeDiscover(query,page,hint).then(x=>[x]));
-  if(provider==='serper'||provider==='both')jobs.push(Promise.allSettled([serper('images',query,page),serper('shopping',query,page),serper('search',`${query} buy clothing`,page)]).then(results=>{const good=results.filter(r=>r.status==='fulfilled');if(!good.length)throw results[0].reason;return good.map(r=>r.value);}));
+  // Retailers we always search directly (PRIORITY_SITES), so they are not crowded out of general results.
+  const sites=prioritySites(),siteSearches=sites.flatMap(site=>[serper('images',`${query} site:${site}`,page),serper('shopping',`${site.split('.')[0]} ${query}`,page)]);
+  if(provider==='serper'||provider==='both')jobs.push(Promise.allSettled([serper('images',query,page),serper('shopping',query,page),serper('search',`${query} buy clothing`,page),...siteSearches]).then(results=>{const good=results.filter(r=>r.status==='fulfilled');if(!good.length)throw results[0].reason;return good.map(r=>r.value);}));
   if(!jobs.length)throw new HttpError(503,'Add ANTHROPIC_API_KEY or SERPER_API_KEY to enable live search');
   const settled=await Promise.allSettled(jobs);
   const payloads=settled.filter(r=>r.status==='fulfilled').flatMap(r=>r.value);
   if(!payloads.length)throw settled[0].reason;
   // Claude payloads come first so its curated picks win ties; Serper adds images and indexed prices.
-  const found=discoveryCandidates(payloads).slice(0,provider==='both'?Math.min(20,limit+6):limit);
+  const found=keepPrioritySites(discoveryCandidates(payloads),provider==='both'?Math.min(20,limit+6):limit,sites);
   // Imageless results need their retailer page read for a photo. Wait briefly so slow retailers don't hold up
   // the whole batch; late pages finish in the background and the piece appears on the next load.
   const wait=Number(process.env.ENRICH_WAIT_MS||2500);

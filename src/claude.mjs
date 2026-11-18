@@ -2,6 +2,7 @@
 // Server only: ANTHROPIC_API_KEY must never be exposed to the browser.
 import { reserve } from './store.mjs';
 import { HttpError, host, safeUrl, text } from './util.mjs';
+import { prioritySites } from './sites.mjs';
 
 const API='https://api.anthropic.com/v1/messages';
 const BLOCKED=['pinterest.com','instagram.com','facebook.com','tiktok.com','youtube.com','reddit.com','quora.com'];
@@ -43,7 +44,7 @@ export function discoveryPrompt(query,page,hint='') {
   return `Find individual women's clothing products for this shopper's search: "${query}".
 ${hint?`The shopper dresses modestly and needs: ${hint}. Strongly prefer pieces that meet these needs.\n`:''}${page>1?`This is results page ${page}: find different products and retailers than the most obvious first results.\n`:''}Rules:
 - Use the web_search tool. Prefer retailers that ship to the United States and modest-fashion retailers when they fit the search.
-- Only return INDIVIDUAL product pages (one specific item you can buy), never category, collection, search, blog, social or marketplace-listing pages.
+${prioritySites().length?`- Include some results from ${prioritySites().join(', ')} when they have pieces that fit.\n`:''}- Only return INDIVIDUAL product pages (one specific item you can buy), never category, collection, search, blog, social or marketplace-listing pages.
 - Only use URLs that appeared in your search results. Never invent or guess a URL, price or image.
 - Clothing only: no shoes, bags, jewelry, scarves or accessories, unless the search asks for them.
 - Include price and currency ONLY if a search result showed them for that exact product; otherwise null.

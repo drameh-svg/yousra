@@ -2,6 +2,7 @@ import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
 import https from 'node:https';
 import { HttpError, safeUrl } from './util.mjs';
+import { store } from './store.mjs';
 
 export function publicAddress(address) {
   if (isIP(address)===4) {
@@ -50,13 +51,20 @@ export function robotsAllowed(content,path,agent='yousramvpbot') {
   }).sort((a,b)=>b.path.length-a.path.length||Number(b.allow)-Number(a.allow));
   return !rules.length||rules[0].allow;
 }
+// robots.txt is cached in memory and in the database, so serverless cold starts do not re-fetch it.
 export async function allowedByRobots(url) {
   const u=new URL(url);let entry=robotCache.get(u.origin);
   if(!entry||entry.expires<Date.now()) {
-    try {
-      const res=await external(`${u.origin}/robots.txt`,{maxBytes:128000,accept:'text/plain'});
-      entry={content:res.status===404?'':res.status===200?res.bytes.toString():null,expires:Date.now()+3600000};
-    } catch {entry={content:null,expires:Date.now()+60000};}
+    const key=`robots-v1:${u.origin}`;
+    entry=await store.get('cache',key).catch(()=>null);
+    if(!entry||entry.expires<Date.now()) {
+      try {
+        const res=await external(`${u.origin}/robots.txt`,{maxBytes:128000,accept:'text/plain'});
+        entry={content:res.status===404?'':res.status===200?res.bytes.toString():null,expires:Date.now()+Number(process.env.ROBOTS_TTL_HOURS||12)*3600000};
+        if(entry.content!==null)await store.put('cache',key,entry).catch(()=>{});
+      } catch {entry={content:null,expires:Date.now()+60000};}
+    }
+    while(robotCache.size>=500)robotCache.delete(robotCache.keys().next().value);
     robotCache.set(u.origin,entry);
   }
   return entry.content!==null&&robotsAllowed(entry.content,u.pathname+u.search);

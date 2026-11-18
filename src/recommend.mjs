@@ -37,3 +37,17 @@ export function diversify(items,model){
  }
  return chosen;
 }
+// Exploration: every Nth feed slot shows a well-verified piece outside the shopper's learned taste, so the
+// feed does not narrow to one look and new likes can teach it something. Never bypasses modesty filters.
+export function explore(items,every=Number(process.env.EXPLORE_EVERY??8)){
+ if(!every||every<3||items.length<every*2)return items;
+ const sorted=[...items].map(x=>x.match.affinity??0).sort((a,b)=>a-b),median=sorted[Math.floor(sorted.length/2)];
+ const pool=items.slice(every).filter(x=>(x.match.affinity??0)<median&&!x.match.uncertain).sort((a,b)=>b.match.confidence-a.match.confidence||a.id.localeCompare(b.id));
+ const placed=new Set(),out=[];
+ for(const item of items){
+  if(placed.has(item.id))continue;
+  if((out.length+1)%every===0){const pick=pool.find(x=>!placed.has(x.id)&&x.id!==item.id);if(pick){placed.add(pick.id);out.push({...pick,match:{...pick.match,explore:true,reasons:[...pick.match.reasons,'Something new to try']}});}}
+  placed.add(item.id);out.push(item);
+ }
+ return out;
+}

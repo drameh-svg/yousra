@@ -40,3 +40,11 @@ An authenticated image endpoint retrieves only stored product images and falls b
 18 backend tests cover the prior flows plus indexed-image attribution, known violations, learning from historical likes, stable private feed cursors, duplicate prevention, live-feed expansion with deterministic provider responses, caps and placeholder prices. Production build supports `/products/[id]`. The Chromium desktop/mobile journey covers signup through product direct load/reload and browser Back.
 
 Live browser checks saw the feed grow from 3 to 9 pieces on scrolling, real photos render, a card navigate to its own product URL, and a search finish discovery/analysis of 12 candidates with extracted prices on several items. These are functionality checks, not a relevance benchmark. Shipping and sizing remain incomplete when retailer metadata is inaccessible. Broad search coverage and continuous replenishment depend on indexing, eligible inventory and free provider quotas. A representative shopper evaluation is still needed to tune weights and measure relevance.
+
+## Update — November 17, 2026
+
+- **Exploration**: every `EXPLORE_EVERY` (default 8) feed slot shows a well-verified piece below the median taste affinity, labelled "Something new to try". It never bypasses eligibility or modesty rules.
+- **Interaction log**: feed impressions (with which slots were exploration) and like/dislike actions are stored as `kind='interaction'`, separate from outbound-click events. This is the dataset for future learning-to-rank or collaborative filtering.
+- **Offline evaluation**: `npm run eval:recs` hides each liked/saved piece in turn and reports hit rate @10 and MRR against a random baseline. Tune the weights in `src/rank.mjs` against it.
+- **Speed**: vision results are cached permanently by image + title. Analysis runs `ANALYSIS_CONCURRENCY` (default 5) products per step instead of 2. The cache lookup and photo download start while the retailer page loads. Photos are resized to 768px before vision. Up to 3 photos per product go in one vision call. robots.txt is cached in the database. Stale products are re-checked after `ANALYSIS_TTL_HOURS` (default 7 days) without a new vision call.
+- **Shopper coverage labels** override the AI once enough shoppers agree; see `docs/MODESTY-LABELS.md`.

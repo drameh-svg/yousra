@@ -7,10 +7,11 @@ import {createFeed,readFeed,feedView,advanceFeed} from './feed.mjs';
 import {productImage} from './media.mjs';
 import { signIn,signOut,user,refresh,assertEnvironment } from './auth.mjs';
 import { store,mutate } from './store.mjs';
-import { STAGES,TAGS,submitReview,summarize,reviewsCsv,isAdmin } from './reviews.mjs';
+import { SURVEY,submitReview,summarize,reviewsCsv,isAdmin } from './reviews.mjs';
+import { labelingItems,submitLabels,labelsJsonl,labelsCsv,labelAgreement } from './labels.mjs';
 import { defaultPreferences,validatePreferences,filtersFrom } from './preferences.mjs';
 import { onboarding,sampleProducts } from './seed.mjs';
-import { discover,analyze,queryFilters,refreshProductPrice,visionProvider } from './discovery.mjs';
+import { discover,analysisTtlMs,analysisConcurrency,queryFilters,refreshProductPrice,visionProvider } from './discovery.mjs';
 import { rankProducts,similarProducts } from './rank.mjs';
 import { body,config,hash,host,HttpError,id,json,now,safeUrl,text } from './util.mjs';
 
@@ -49,7 +50,7 @@ async function advance(job,uid) {
       if(cache&&cache.expires>Date.now())next.analysisIds=cache.productIds;
       else {
         const found=await discover(next.discoveryQuery,1,{hint:coverageHint(next.preferences,next.filters.category)});
-        for(const p of found) {const existing=await store.get('product',p.id);await store.put('product',p.id,existing&&Date.now()-Date.parse(existing.analyzedAt||'')<86400000?existing:p);}
+        for(const p of found) {const existing=await store.get('product',p.id);await store.put('product',p.id,existing&&Date.now()-Date.parse(existing.analyzedAt||'')<analysisTtlMs()?existing:{...p,...(existing?.humanModesty?{humanModesty:existing.humanModesty}:{})});}
         next.analysisIds=found.map(x=>x.id);
         await store.put('cache',cacheKey,{productIds:next.analysisIds,expires:Date.now()+Number(process.env.SEARCH_TTL_HOURS||6)*3600000});
       }
@@ -57,11 +58,8 @@ async function advance(job,uid) {
       next.phase='analysis';next.processed=0;next.status=next.analysisIds.length?'pending':'complete';
     } else {
       const analysisIds=next.analysisIds||next.productIds;
-      const ids=analysisIds.slice(next.processed,next.processed+2);
-      const results=await Promise.allSettled(ids.map(async key=>{
-        const p=await store.get('product',key); if(!p)return;
-        if(!p.analyzedAt || Date.now()-Date.parse(p.analyzedAt)>86400000) await store.put('product',key,await analyze(p));
-      }));
+      const ids=analysisIds.slice(next.processed,next.processed+analysisConcurrency());
+      const results=await Promise.allSettled(ids.map(key=>analyzeStored(key)));
       if(results.some(r=>r.status==='rejected')) next.warnings=[...new Set([...next.warnings,'Some products could not be analyzed and remain uncertain.'])];
       next.processed+=ids.length;next.status=next.processed>=analysisIds.length?'complete':'pending';
     }
@@ -69,6 +67,12 @@ async function advance(job,uid) {
   next.lockedAt=0;
   await store.compareAndSwap('job',next.id,uid,locked.version,next);
   return await store.get('job',next.id,uid);
+}
+// Interaction log for future learning-to-rank / collaborative filtering. Separate kind, so click metrics stay clean.
+async function logInteraction(uid,data){try{await store.put('interaction',id(),{...data,userId:uid,at:now()},uid);}catch{}}
+async function logImpressions(uid,feedId,url,items){
+  if(!items.length)return;const offset=Math.max(0,Number(url.searchParams.get('offset'))||0);
+  await logInteraction(uid,{type:'impressions',feedId,offset,productIds:items.map(x=>x.id),explore:items.filter(x=>x.match?.explore).map(x=>x.id)});
 }
 // Vercel's edge overwrites x-forwarded-for / x-real-ip, so they are trustworthy there. Elsewhere, only a
 // caller-supplied context.clientIp is trusted; otherwise everyone shares one conservative bucket.
@@ -114,7 +118,7 @@ export async function handle(request, context={}) {
     }
     if(path==='/api/auth/signout'&&method==='POST')return await signOut(request);
     if(path==='/api/auth/refresh'&&method==='POST')return await refresh(request);
-    if(path==='/api/reviews/form'&&method==='GET')return json({stages:STAGES,tags:TAGS});
+    if(path==='/api/reviews/form'&&method==='GET')return json(SURVEY);
     if(path==='/api/reviews'&&method==='POST'){
       const account=await user(request).catch(()=>null);
       return await submitReview(await body(request),{userAccount:account,ip:clientIp(request,context),userAgent:request.headers.get('user-agent')});
@@ -146,18 +150,30 @@ export async function handle(request, context={}) {
         return p;
       });return json({profile:updated});
     }
+    if(path==='/api/admin/labels'&&method==='GET'){
+      if(!isAdmin(u))throw new HttpError(403,'Admin access required. Add your account email to ADMIN_EMAILS.');
+      const labels=await store.list('modesty_label',undefined,10000),format=url.searchParams.get('format');
+      const stamp=now().slice(0,10);
+      if(format==='jsonl')return new Response(labelsJsonl(labels),{headers:{'content-type':'application/x-ndjson; charset=utf-8','content-disposition':`attachment; filename="yousra-modesty-labels-${stamp}.jsonl"`,'cache-control':'no-store'}});
+      if(format==='csv')return new Response(labelsCsv(labels),{headers:{'content-type':'text/csv; charset=utf-8','content-disposition':`attachment; filename="yousra-modesty-labels-${stamp}.csv"`,'cache-control':'no-store'}});
+      return json({summary:labelAgreement(labels),recent:labels.slice(0,50)});
+    }
+    if(path==='/api/labeling/items'&&method==='GET')return json(await labelingItems(u.id,url.searchParams.get('count')));
+    if(path==='/api/labeling'&&method==='POST')return json(await submitLabels(await body(request),u),201);
+    const photo=path.match(/^\/api\/products\/([\w-]+)\/image$/);
+    if(photo&&method==='GET'){const item=await product(photo[1]);if(!item)throw new HttpError(404,'Product not found');return productImage(item,Math.max(0,Math.min(5,Number(url.searchParams.get('index'))||0)));}
     const p=await profile(u.id),lib=await library(u.id);
     const libraryAction=path.startsWith('/api/collections')||path==='/api/reactions'||/^\/api\/products\/[\w-]+\/reaction$/.test(path);
     if(!p.onboarded&&!libraryAction)throw new HttpError(409,'Complete onboarding first');
     if(path==='/api/feed'&&method==='GET') {
       const session=await createFeed(p,lib,filtersFrom(Object.fromEntries(url.searchParams)));
-      const view=await feedView(session,p,lib,url);return json({...view,items:view.items.map(publicProduct)});
+      const view=await feedView(session,p,lib,url);await logImpressions(u.id,session.id,url,view.items);return json({...view,items:view.items.map(publicProduct)});
     }
     const feedMatch=path.match(/^\/api\/feed\/([\w-]+)(\/advance)?$/);
     if(feedMatch&&((feedMatch[2]&&method==='POST')||(!feedMatch[2]&&method==='GET'))){
       let session=await readFeed(feedMatch[1],u.id);
       if(feedMatch[2])session=await advanceFeed(session,p,lib);
-      const view=await feedView(session,p,lib,url);return json({...view,items:view.items.map(publicProduct)});
+      const view=await feedView(session,p,lib,url);if(!feedMatch[2])await logImpressions(u.id,session.id,url,view.items);return json({...view,items:view.items.map(publicProduct)});
     }
     if(path==='/api/search'&&method==='POST') {
       if(!await store.reserve(`search:${u.id}`,40,100000))throw new HttpError(429,'Daily search limit reached');
@@ -202,7 +218,6 @@ export async function handle(request, context={}) {
     if(prod) {
       let item=await product(prod[1]);if(!item)throw new HttpError(404,'Product not found');
       if(prod[2]==='price'&&method==='POST'){item=await refreshProductPrice(item);return json({product:publicProduct(item)});}
-      if(prod[2]==='image'&&method==='GET')return productImage(item,Math.max(0,Math.min(5,Number(url.searchParams.get('index'))||0)));
       if(!prod[2]&&method==='GET') {
         const eligible=rankProducts((await catalog()).filter(x=>config().demo||!x.demo&&x.image&&x.productPage!==false),p,interactions(lib),onboarding,{},'',true);
         return json({product:publicProduct(item),reaction:lib.reactions[item.id]||{},similar:(config().demo?similarProducts(item,eligible):await checkAvailability(similarProducts(item,eligible))).map(publicProduct)});
@@ -212,7 +227,8 @@ export async function handle(request, context={}) {
         const updated=await mutate('library',u.id,u.id,libraryInitial(),l=>{
           l.reactions[item.id]={...l.reactions[item.id],liked:action==='like',disliked:action==='dislike',at:now()};
           const likes=l.collections.find(c=>c.id==='likes');likes.productIds=likes.productIds.filter(x=>x!==item.id);if(action==='like')likes.productIds.push(item.id);return l;
-        });return json({reaction:updated.reactions[item.id],collections:updated.collections});
+        });
+        await logInteraction(u.id,{type:'reaction',action,productId:item.id});return json({reaction:updated.reactions[item.id],collections:updated.collections});
       }
       if(prod[2]==='outbound'&&method==='GET') {
         if(!['card','detail'].includes(url.searchParams.get('surface')))throw new HttpError(400,'Specify surface=card or surface=detail');

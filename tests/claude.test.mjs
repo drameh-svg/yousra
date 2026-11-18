@@ -88,25 +88,28 @@ test('coverage hint turns saved rules into plain search guidance',()=>{
  assert.equal(coverageHint(defaultPreferences(),'top'),'');
 });
 
-test('journey reviews: guests and members can submit; only admins can read; CSV is formula-safe',async()=>{
+test('validation survey: guests and members can submit; only admins can read; CSV is formula-safe',async()=>{
  const {handle}=await import('../src/api.mjs');
  process.env.APP_ORIGIN='http://localhost:3000';
  const jar={};
  const call=async(path,method='GET',data,cookie)=>{const r=await handle(new Request('http://localhost:3000/api'+path,{method,headers:{...(data?{'content-type':'application/json'}:{}),...(cookie?{cookie}:{})},body:data?JSON.stringify(data):undefined}));const setc=r.headers.get('set-cookie');if(setc)jar.c=setc.split(';')[0];const t=await r.text();let j;try{j=JSON.parse(t)}catch{j=t}return {status:r.status,data:j};};
- assert.equal((await call('/reviews','POST',{overall:9})).status,400);
- assert.equal((await call('/reviews','POST',{overall:4})).status,400,'needs some content');
- const guest=await call('/reviews','POST',{overall:5,recommend:10,stages:{feed:{rating:5,tags:['Fun','Hacked']}},improve:'=HYPERLINK("x")'});
+ const form=await call('/reviews/form');assert.equal(form.data.version,2);assert.ok(form.data.working.length&&form.data.inProgress.length);
+ assert.equal((await call('/reviews','POST',{overall:9,sentence:'Great'})).status,400);
+ assert.equal((await call('/reviews','POST',{overall:4})).status,400,'needs the one-sentence answer');
+ const guest=await call('/reviews','POST',{overall:5,sentence:'=HYPERLINK("x")',liked:['feed','Hacked'],wanted:['outfits','accuracy'],wantedOther:['  Abaya filter  '],priorities:['coverage','price','fit','style'],sites:['shein','modanisa','nope'],disappointed:'very'});
  assert.equal(guest.status,201);
  await call('/auth/signup','POST',{email:'reviewer@example.com',password:'test-password-9'});
  const cookie=jar.c;
- assert.equal((await call('/reviews','POST',{overall:3,loved:'The swipes',modestyAccuracy:2},cookie)).status,201);
+ assert.equal((await call('/reviews','POST',{overall:3,sentence:'The swipes were fun.',priorities:['price'],disappointed:'not'},cookie)).status,201);
  assert.equal((await call('/admin/reviews','GET',undefined,cookie)).status,403);
  process.env.ADMIN_EMAILS='Reviewer@Example.com';
  const admin=await call('/admin/reviews','GET',undefined,cookie);
  assert.equal(admin.status,200);assert.equal(admin.data.summary.count,2);
- const g=admin.data.reviews.find(r=>!r.userId);assert.deepEqual(g.stages.feed.tags,['Fun']);
+ const g=admin.data.reviews.find(r=>!r.userId);assert.deepEqual(g.liked,['feed']);assert.deepEqual(g.priorities,['coverage','price','fit']);assert.deepEqual(g.sites,['shein','modanisa']);assert.deepEqual(g.wantedOther,['Abaya filter']);
  assert.ok(admin.data.reviews.some(r=>r.email==='reviewer@example.com'));
- assert.equal(admin.data.summary.nps,100);
+ assert.equal(admin.data.summary.veryDisappointed,50);
+ assert.equal(admin.data.summary.priorities[0].id,'price');assert.equal(admin.data.summary.priorities[0].points,5);
+ assert.ok(admin.data.summary.wanted.find(x=>x.id==='accuracy').inProgress);
  const csv=await call('/admin/reviews?format=csv','GET',undefined,cookie);
  assert.ok(csv.data.includes(`"'=HYPERLINK(""x"")"`));
  delete process.env.ADMIN_EMAILS;

@@ -81,9 +81,11 @@ export async function claudeDiscover(query,page=1,hint='') {
   return {curated,usage:data?.usage||null};
 }
 
-export async function claudeVision(prompt,mediaType,base64) {
+export async function claudeVision(prompt,images,legacyData) {
+  // Accepts [{mime,data}] (several photos of one product) or the older (prompt, mediaType, base64) form.
+  const photos=Array.isArray(images)?images:[{mime:images,data:legacyData}];
   await reserve('claude_vision');
-  const data=await claudeRequest({model:claudeModel(),max_tokens:1600,system:'You are a careful fashion product analyst. Reply with one JSON object only.',messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:mediaType,data:base64}},{type:'text',text:prompt}]}]},{timeout:30000});
+  const data=await claudeRequest({model:claudeModel(),max_tokens:1600,system:'You are a careful fashion product analyst. Reply with one JSON object only.',messages:[{role:'user',content:[...photos.map(x=>({type:'image',source:{type:'base64',media_type:x.mime,data:x.data}})),{type:'text',text:prompt}]}]},{timeout:30000});
   const parsed=parseJson(blockText(data.content));
   if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))throw new Error('Claude returned no garment JSON');
   return parsed;

@@ -1,7 +1,7 @@
 import {checkAvailability} from './stock.mjs';
 import {curatedProducts} from './curated.mjs';
 import {store} from './store.mjs';
-import {discover,analyze} from './discovery.mjs';
+import {discover,analyzeStored,analysisConcurrency} from './discovery.mjs';
 import {discoveryProvider} from './claude.mjs';
 import {rankProducts,preferenceWeights} from './rank.mjs';
 import {onboarding,sampleProducts} from './seed.mjs';
@@ -58,11 +58,8 @@ export async function advanceFeed(session,profile,lib){
         next.round++;next.processed=0;
       }
     }else {
-      const batch=next.pending.slice(next.processed,next.processed+2);
-      await Promise.allSettled(batch.map(async key=>{
-        const p=await store.get('product',key);if(!p)return;
-        if(!p.analyzedAt||Date.now()-Date.parse(p.analyzedAt)>86400000)await store.put('product',key,await analyze(p));
-      }));
+      const batch=next.pending.slice(next.processed,next.processed+analysisConcurrency());
+      await Promise.allSettled(batch.map(key=>analyzeStored(key)));
       next.processed+=batch.length;
       if(next.processed>=next.pending.length){next.pending=[];next.processed=0;}
     }

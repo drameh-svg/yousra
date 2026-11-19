@@ -92,10 +92,10 @@ export async function mutate(kind, key, owner, initial, update) {
 }
 export async function reserve(provider) {
   const prefix = provider.toUpperCase();
-  const defaults={serper:[2000,50000],gemini:[60,300],claude_search:[60,1500],claude_vision:[400,10000]}[provider]||[60,300];
-  // Testing period: Serper's high defaults are a floor, so a lower SERPER_*_LIMIT left on Vercel can't cap it.
-  // Higher env values still apply. Set SERPER_LIMIT_FLOOR=false (or lower these) before launch to protect paid credits.
-  const floor=provider==='serper'&&process.env.SERPER_LIMIT_FLOOR!=='false';
+  const defaults={serper:[2000,50000],gemini:[1500,50000],claude_search:[60,1500],claude_vision:[400,10000]}[provider]||[60,300];
+  // Testing period: Serper's and Gemini's high defaults are a floor, so lower *_LIMIT values left on Vercel can't cap them.
+  // Higher env values still apply. Set SERPER_LIMIT_FLOOR=false / GEMINI_LIMIT_FLOOR=false before launch to restore normal caps.
+  const floor=['serper','gemini'].includes(provider)&&process.env[`${prefix}_LIMIT_FLOOR`]!=='false';
   const limit=(env,fallback)=>floor?Math.max(Number(env)||0,fallback):Number(env||fallback);
   if (!await store.reserve(provider, limit(process.env[`${prefix}_DAILY_LIMIT`],defaults[0]), limit(process.env[`${prefix}_TOTAL_LIMIT`],defaults[1])))
     throw new HttpError(429, `${provider.replace('_',' ')} usage cap reached. Cached products are still available.`);

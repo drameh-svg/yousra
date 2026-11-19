@@ -5,7 +5,7 @@ import { Search } from "lucide-react";
 import Link from "next/link";
 import {useRouter} from "next/navigation";
 
-const SUGGESTED = ["Dresses", "Skirts", "Tops", "Activewear", "Swimwear", "Occasionwear"];
+const SUGGESTED = ["Dresses", "Skirts", "Tops", "Pants", "Abayas"];
 
 export default function SearchPage() {
   const router=useRouter();
@@ -25,23 +25,23 @@ export default function SearchPage() {
         </p>
 
         {/* Search input */}
-        <form onSubmit={e=>{e.preventDefault();if(query.trim())router.push("/search/results?q="+encodeURIComponent(query.trim()))}} style={{ position: "relative", marginBottom: "20px" }}>
-          <Search size={15} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: "#637180", pointerEvents: "none" }} />
+        {/* Icon, field and button share one flex row, so the button stays centred whatever the font. */}
+        <form onSubmit={e=>{e.preventDefault();if(query.trim())router.push("/search/results?q="+encodeURIComponent(query.trim()))}}
+          style={{ display: "flex", alignItems: "center", gap: "8px", height: "48px", padding: "0 6px 0 14px", marginBottom: "20px", border: "1px solid rgba(53,45,39,0.15)", borderRadius: "12px", background: "#fff" }}>
+          <Search size={15} aria-hidden style={{ color: "#637180", flexShrink: 0 }} />
           <input
             aria-label="Search clothing"
             maxLength={300}
             autoFocus
-            type="search"
+            type="text"
+            inputMode="search"
+            enterKeyHint="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder='Try "black maxi skirt" or "wedding guest dress"'
-            style={{
-              width: "100%", height: "44px", paddingLeft: "42px", paddingRight: "85px",
-              border: "1px solid rgba(53,45,39,0.15)", borderRadius: "12px",
-              background: "#fff", fontSize: "14px", color: "#352D27", outline: "none",
-            }}
+            style={{ flex: 1, minWidth: 0, height: "100%", border: 0, background: "transparent", fontSize: "14px", color: "#352D27", outline: "none", padding: 0 }}
           />
-          <button type="submit" style={{position:"absolute",right:10,top:7,padding:"7px 12px",border:0,borderRadius:8,background:"#352D27",color:"white",cursor:"pointer"}}>Search</button>
+          <button type="submit" style={{ flexShrink: 0, height: "36px", padding: "0 16px", border: 0, borderRadius: "8px", background: "#352D27", color: "#fff", fontSize: "13px", fontWeight: 600, lineHeight: 1, cursor: "pointer", display: "inline-flex", alignItems: "center" }}>Search</button>
         </form>
 
         {/* Suggested categories */}

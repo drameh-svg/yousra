@@ -111,19 +111,20 @@ export function keepPrioritySites(candidates,limit,sites=prioritySites()) {
   const keep=new Set([...reserved,...fill.map(p=>p.id)]);
   return candidates.filter(p=>keep.has(p.id)).slice(0,Math.max(limit,reserved.size));
 }
-export async function discover(query, page=1, {hint='',lite=false}={}) {
+export async function discover(query, page=1, {hint='',lite=false,site=''}={}) {
   const provider=discoveryProvider(),limit=Math.min(20,Number(process.env.MAX_CANDIDATES||12));
   const jobs=[];
-  if(provider==='claude'||provider==='both')jobs.push(claudeDiscover(query,page,hint).then(x=>[x]));
+  if(provider==='claude'||provider==='both')jobs.push(claudeDiscover(site?`${query} site:${site}`:query,page,hint).then(x=>[x]));
   // Retailers we always search directly (PRIORITY_SITES), so they are not crowded out of general results.
-  const sites=lite?[]:prioritySites(),siteSearches=sites.flatMap(site=>[serper('images',`${query} site:${site}`,page),serper('shopping',`${site.split('.')[0]} ${query}`,page)]);
-  if(provider==='serper'||provider==='both')jobs.push(Promise.allSettled([serper('images',query,page),serper('shopping',query,page),...(lite?[]:[serper('search',`${query} buy clothing`,page)]),...siteSearches]).then(results=>{const good=results.filter(r=>r.status==='fulfilled');if(!good.length)throw results[0].reason;return good.map(r=>r.value);}));
+  const sites=lite||site?[]:prioritySites(),siteSearches=sites.flatMap(site=>[serper('images',`${query} site:${site}`,page),serper('shopping',`${site.split('.')[0]} ${query}`,page)]);
+  if(provider==='serper'||provider==='both')jobs.push(Promise.allSettled(site?[serper('images',`${query} site:${site}`,page),serper('search',`${query} site:${site}`,page),serper('shopping',query,page)]:[serper('images',query,page),serper('shopping',query,page),...(lite?[]:[serper('search',`${query} buy clothing`,page)]),...siteSearches]).then(results=>{const good=results.filter(r=>r.status==='fulfilled');if(!good.length)throw results[0].reason;return good.map(r=>r.value);}));
   if(!jobs.length)throw new HttpError(503,'Add ANTHROPIC_API_KEY or SERPER_API_KEY to enable live search');
   const settled=await Promise.allSettled(jobs);
   const payloads=settled.filter(r=>r.status==='fulfilled').flatMap(r=>r.value);
   if(!payloads.length)throw settled[0].reason;
   // Claude payloads come first so its curated picks win ties; Serper adds images and indexed prices.
-  const found=keepPrioritySites(discoveryCandidates(payloads),provider==='both'?Math.min(20,limit+6):limit,sites);
+  const candidates=discoveryCandidates(payloads).filter(p=>!site||host(p.url)===site||host(p.url).endsWith(`.${site}`));
+  const found=site?candidates.slice(0,limit):keepPrioritySites(candidates,provider==='both'?Math.min(20,limit+6):limit,sites);
   // Imageless results need their retailer page read for a photo. Wait briefly so slow retailers don't hold up
   // the whole batch; late pages finish in the background and the piece appears on the next load.
   const wait=Number(process.env.ENRICH_WAIT_MS||2500);

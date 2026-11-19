@@ -7,7 +7,12 @@ import {useSession} from "@/components/session-provider";
 import {api} from "@/lib/api";
 import {accountPreferences} from "@/lib/profile-preferences";
 import { BRAND_LIST } from "@/lib/brands";
+import { brandLogo } from "@/lib/brand-logos";
+import { ModestyQuiz, type QuizResult } from "@/components/modesty-quiz";
+import { styleLabel } from "@/lib/api";
+import { Sparkles, Trash2 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 type Aesthetic = "Y2K" | "Whimsy" | "90s Chic" | "Clean Girl" | "Alternative" | "Earthy";
 const AESTHETICS: Aesthetic[] = ["Y2K", "Whimsy", "90s Chic", "Clean Girl", "Alternative", "Earthy"];
@@ -23,13 +28,16 @@ const MODESTY_DESC = {
 
 export default function ProfilePage() {
   const { prefs } = usePrefs();
-  const session=useSession();
+  const session=useSession(),router=useRouter();
   const [saving,setSaving]=useState(false),[error,setError]=useState("");
   const [form, setForm] = useState({ ...prefs });
   const [saved, setSavedState] = useState(false);
+  // Find my modesty: suggested level plus any single rules tightened by her answers.
+  const [quizOpen, setQuizOpen] = useState(false), [quiz, setQuiz] = useState<QuizResult | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(""), [deleting, setDeleting] = useState(false), [deleteError, setDeleteError] = useState("");
 
   useEffect(() => {queueMicrotask(()=>{
-    if(session.user&&session.profile){const p=session.profile.preferences;setForm({...prefs,email:session.user.email,aesthetics:p.styles.map(s=>s.charAt(0).toUpperCase()+s.slice(1)),sizes:p.sizes.map(s=>s.toUpperCase()),brands:p.preferredBrands||[],budget:p.budgetMax==null?'':p.budgetMax===50?'Under $50':p.budgetMax===100?'$50–$100':p.budgetMax===200?'$100–$200':String(p.budgetMax),modesty:(session.profile.coveragePreset||'') as Prefs['modesty']});}
+    if(session.user&&session.profile){const p=session.profile.preferences;setForm({...prefs,email:session.user.email,aesthetics:p.styles.map(s=>styleLabel[s]??s.charAt(0).toUpperCase()+s.slice(1)),sizes:p.sizes.map(s=>s.toUpperCase()),brands:p.preferredBrands||[],budget:p.budgetMax==null?'':p.budgetMax===50?'Under $50':p.budgetMax===100?'$50–$100':p.budgetMax===200?'$100–$200':String(p.budgetMax),modesty:(session.profile.coveragePreset||'') as Prefs['modesty']});}
     else setForm({...prefs});
   });},[prefs,session.user,session.profile]);
 
@@ -53,9 +61,15 @@ export default function ProfilePage() {
   async function handleSave(){
     if(saving||session.loading)return;setSaving(true);setError('');
     try{
-      if(session.user&&session.profile){await api('/profile','PUT',{preferences:accountPreferences(form,session.profile.preferences,form.modesty!==(session.profile.coveragePreset||'')),...(form.modesty?{coveragePreset:form.modesty}:{})});await session.reload();}
-      writePrefs(form);setSavedState(true);setTimeout(()=>setSavedState(false),2000);
+      if(session.user&&session.profile){const next=accountPreferences(form,session.profile.preferences,form.modesty!==(session.profile.coveragePreset||'')||!!quiz);if(quiz&&quiz.preset===form.modesty){for(const rule of Object.values(next.rules))Object.assign(rule,Object.fromEntries(Object.entries(quiz.tweaks).filter(([f])=>f in rule)));if(quiz.allowLayering)next.allowLayering=true;}await api('/profile','PUT',{preferences:next,...(form.modesty?{coveragePreset:form.modesty}:{})});await session.reload();}
+      writePrefs(form);setQuiz(null);setSavedState(true);setTimeout(()=>setSavedState(false),2000);
     }catch(e){setError(e instanceof Error?e.message:'Could not save preferences.')}finally{setSaving(false)}
+  }
+
+  async function deleteAccount(){
+    setDeleting(true);setDeleteError('');
+    try{await api('/account','DELETE',{confirm:'DELETE'});localStorage.clear();await session.signOut().catch(()=>{});router.push('/');}
+    catch(e){setDeleteError(e instanceof Error?e.message:'Could not delete your account.');setDeleting(false);}
   }
 
   return (
@@ -79,22 +93,14 @@ export default function ProfilePage() {
           )}
         </p>
 
-        {/* ── Account ── */}
-        <Card title="Account">
-          <Field label="Name">
-            <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              placeholder="Your name"
-              style={inputStyle} />
-          </Field>
-          <Field label="Email">
-            <input value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-              placeholder="you@example.com" type="email"
-              style={inputStyle} />
-          </Field>
-        </Card>
-
         {/* ── Modesty ── */}
         <Card title="Modesty preference">
+          <button type="button" onClick={() => setQuizOpen(true)}
+            style={{ display: "flex", alignItems: "center", gap: "10px", width: "100%", textAlign: "left", padding: "14px 16px", marginBottom: "12px", borderRadius: "10px", border: "1px dashed rgba(53,45,39,0.35)", background: "#FAF8F5", cursor: "pointer" }}>
+            <Sparkles size={16} color="#352D27" />
+            <span><span style={{ display: "block", fontSize: "13px", fontWeight: 700, color: "#352D27" }}>Find my modesty</span><span style={{ display: "block", fontSize: "12px", color: "#637180" }}>Answer 5 quick “would you wear this?” questions and we&apos;ll suggest a level. You can still pick one yourself below.</span></span>
+          </button>
+          {quiz && quiz.preset === form.modesty ? <p style={{ fontSize: "12px", color: "#637180", marginBottom: "10px" }}>Suggested from your answers{Object.keys(quiz.tweaks).length ? `, with a few extra rules (${Object.keys(quiz.tweaks).join(", ")})` : ""}. Save preferences to keep it.</p> : null}
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             {MODESTY_OPTIONS.map((opt) => (
               <button key={opt} onClick={() => setForm((f) => ({ ...f, modesty: opt }))}
@@ -153,7 +159,7 @@ export default function ProfilePage() {
               return (
                 <button key={brand} onClick={() => toggleBrand(brand)} disabled={full}
                   style={{
-                    fontSize: "12px", padding: "6px 13px", borderRadius: "999px",
+                    fontSize: "12px", padding: "6px 13px 6px 9px", borderRadius: "999px",
                     border: `1px solid ${active ? "#352D27" : "rgba(53,45,39,0.2)"}`,
                     background: active ? "#352D27" : "#fff",
                     color: active ? "#F5F5F5" : full ? "rgba(53,45,39,0.3)" : "#352D27",
@@ -162,11 +168,29 @@ export default function ProfilePage() {
                     display: "inline-flex", alignItems: "center", gap: "4px",
                   }}>
                   {active && <Check size={10} />}
+                  {brandLogo(brand) ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={brandLogo(brand)!} alt="" width={16} height={16} loading="lazy" style={{ width: 16, height: 16, borderRadius: 4, background: "#fff" }} onError={e => { e.currentTarget.style.display = "none"; }} />
+                  ) : null}
                   {brand}
                 </button>
               );
             })}
           </div>
+        </Card>
+
+        {/* ── Account ── */}
+        <Card title="Account">
+          <Field label="Name">
+            <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+              placeholder="Your name"
+              style={inputStyle} />
+          </Field>
+          <Field label="Email">
+            <input value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+              placeholder="you@example.com" type="email"
+              style={inputStyle} />
+          </Field>
         </Card>
 
         {/* ── Save ── */}
@@ -182,6 +206,24 @@ export default function ProfilePage() {
           }}>
           {saved ? <><Check size={16} /> Preferences saved</> : saving?"Saving…":"Save preferences"}
         </button>
+
+        {/* ── Delete account ── */}
+        {session.user ? (
+          <div style={{ marginTop: "28px", borderRadius: "14px", padding: "18px 20px", border: "1px solid rgba(185,28,28,0.25)", background: "#fff" }}>
+            <h3 style={{ fontSize: "13px", fontWeight: 700, color: "#991B1B", letterSpacing: "0.03em", textTransform: "uppercase", marginBottom: "8px" }}>Delete account</h3>
+            <p style={{ fontSize: "12px", color: "#637180", lineHeight: 1.6, marginBottom: "12px" }}>Permanently deletes your account, preferences, likes, collections (including shared ones) and feedback. This can&apos;t be undone.</p>
+            <label style={{ display: "block", fontSize: "12px", color: "#637180", marginBottom: "6px" }}>Type <strong>DELETE</strong> to confirm</label>
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+              <input value={confirmDelete} onChange={e => setConfirmDelete(e.target.value)} aria-label="Type DELETE to confirm" style={{ ...inputStyle, maxWidth: "200px" }} />
+              <button type="button" disabled={confirmDelete !== "DELETE" || deleting} onClick={() => void deleteAccount()}
+                style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "0 16px", height: "40px", borderRadius: "999px", border: "none", background: confirmDelete === "DELETE" ? "#991B1B" : "rgba(153,27,27,0.25)", color: "#fff", fontSize: "13px", fontWeight: 700, cursor: confirmDelete === "DELETE" ? "pointer" : "default" }}>
+                <Trash2 size={14} />{deleting ? "Deleting…" : "Delete my account"}
+              </button>
+            </div>
+            {deleteError ? <p role="alert" style={{ fontSize: "12px", color: "#991B1B", marginTop: "8px" }}>{deleteError}</p> : null}
+          </div>
+        ) : null}
+        {quizOpen ? <ModestyQuiz onClose={() => setQuizOpen(false)} onApply={r => { setQuiz(r); setForm(f => ({ ...f, modesty: r.preset })); setQuizOpen(false); }} /> : null}
       </div>
     </main>
   );

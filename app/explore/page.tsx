@@ -6,6 +6,7 @@ import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { ProductCard } from "@/components/product-card";
 import { products } from "@/lib/products";
 import { spotlighted, categories, brands, trending } from "@/lib/explore-data";
+import { useBrandPreviews } from "@/lib/use-brand-previews";
 
 const aestheticTiles = [
   { label: "Y2K", slug: "y2k", image: products.find((p) => p.id === "13")!.image },
@@ -17,6 +18,12 @@ const aestheticTiles = [
 ];
 
 export default function ExplorePage() {
+  // Real listings from each brand's own shop (signed-in shoppers); curated images are the fallback.
+  const previews = useBrandPreviews(brands.map(b => ({ domain: b.domain, name: b.name })), 4);
+  const hero = previews[brands[0].domain];
+  const heroItems = hero?.items.some(p => p.image) ? hero.items.filter(p => p.image).slice(0, 4).map(p => ({ id: p.id, title: p.title, image: p.image || "", href: `/products/${p.id}` }))
+    : spotlighted.map(p => ({ id: p.id, title: p.title, image: p.image, href: `/product/${p.id}` }));
+  const count = (domain: string, fallback: number) => previews[domain] ? (previews[domain].total ? `${previews[domain].total} pieces on Yousra` : "New pieces coming soon") : `${fallback} pieces`;
   return (
     <main style={{ minHeight: "100vh", background: "var(--bg)" }}>
 
@@ -42,7 +49,7 @@ export default function ExplorePage() {
                 {brands[0].name}
               </h2>
               <p style={{ fontSize: "14px", color: "rgba(245,245,245,0.65)", lineHeight: 1.65, maxWidth: "340px", marginBottom: "20px" }}>
-                {brands[0].tagline} {brands[0].pieceCount} pieces available through Yousra.
+                {brands[0].tagline} {hero ? (hero.total ? `${hero.total} pieces available through Yousra.` : "Fresh pieces are on their way.") : `${brands[0].pieceCount} pieces available through Yousra.`}
               </p>
             </div>
             <Link href={`/brand/${brands[0].slug}`}
@@ -58,8 +65,8 @@ export default function ExplorePage() {
 
           {/* Right — 2x2 product thumbnails */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-            {spotlighted.map((p) => (
-              <Link key={p.id} href={`/product/${p.id}`}
+            {heroItems.map((p) => (
+              <Link key={p.id} href={p.href}
                 style={{ display: "block", borderRadius: "12px", overflow: "hidden", textDecoration: "none" }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={p.image} alt={p.title}
@@ -137,12 +144,12 @@ export default function ExplorePage() {
                 }}>
                 <div style={{ width: "60px", height: "75px", borderRadius: "8px", overflow: "hidden", flexShrink: 0 }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={brand.image} alt={brand.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  <img src={previews[brand.domain]?.items[0]?.image || brand.image} alt={brand.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 </div>
                 <div>
                   <p style={{ fontSize: "13px", fontWeight: 700, color: "#352D27", marginBottom: "3px" }}>{brand.name}</p>
                   <p style={{ fontSize: "11px", color: "#637180", lineHeight: 1.5, marginBottom: "6px" }}>{brand.tagline}</p>
-                  <span style={{ fontSize: "11px", color: "#637180" }}>{brand.pieceCount} pieces</span>
+                  <span style={{ fontSize: "11px", color: "#637180" }}>{count(brand.domain, brand.pieceCount)}</span>
                 </div>
               </Link>
             ))}

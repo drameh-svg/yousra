@@ -33,10 +33,15 @@ export function feedQuery(profile,interactions,all,round,filters={}) {
   const style=filters.style||best('style:',normalizeStyles(prefs.styles)[0]||'');
   const brands=[...new Set([...(prefs.preferredBrands||[]),...feedBrands()].map(b=>b.trim()).filter(Boolean))];
   // A different brand each round keeps results from collapsing onto the same few big retailers.
-  const brand=brands.length?brands[round%brands.length]:'';
+  const brand=filters.brand?'':brands.length?brands[round%brands.length]:'';
   const words=[brand,AESTHETIC_SEARCH[style]||(style?style:'modest'),round%3===0?(filters.color||best('color:',prefs.colors[0]||'')):(filters.color||''),rule.sleeves==='long'?'long sleeve':'',rule.neckline==='high'?'high neck':'',rule.fit==='loose'?'loose fit':'',nouns[category]||'women clothing'];
   const budget=filters.maxPrice??prefs.budgetMax;if(budget)words.push(`under $${budget}`);
   const cycle=filters.category?Math.max(1,brands.length):ordered.length*Math.max(1,brands.length)/gcd(ordered.length,Math.max(1,brands.length));
+  if(filters.brand){
+    // Brand page: search only that brand's site, cycling through clothing types.
+    const site=filters.brand,noun=nouns[filters.category||cats[round%cats.length]];
+    return {query:[filters.brandName||'',style&&AESTHETIC_SEARCH[style]||'',filters.color||'',noun].filter(Boolean).join(' '),page:1+Math.floor(round/(filters.category?1:cats.length)),brand:filters.brandName||site,site};
+  }
   words.push('women');return {query:words.filter(Boolean).join(' '),page:1+Math.floor(round/cycle),brand};
 }
 function coverageSummary(prefs,category){const r=prefs?.rules?.[category||'dress']||{};return [r.sleeves==='long'?'long sleeves':'',r.neckline==='high'?'high neckline':'',r.length==='maxi'?'maxi length':r.length==='midi'?'at least midi length':'',r.fit==='loose'?'loose fit':'',r.transparency==='opaque'?'opaque fabric':'',r.slits==='none'?'no slits':'',r.cutouts==='none'?'no cutouts':''].filter(Boolean).join(', ');}
@@ -148,13 +153,13 @@ export async function feedView(session,profile,lib,url,{ranked}={}){
 const rounds=new Map();
 export function warmRound(profile,lib,round,filters={}){
   return (async()=>{
-    const all=await products();const {query,page}=feedQuery(profile,feedInteractions(lib),all,round,filters);
-    const cacheKey=hash(`images-v2:${discoveryProvider()}:${query.toLowerCase()}:${page}`);
+    const all=await products();const {query,page,site}=feedQuery(profile,feedInteractions(lib),all,round,filters);
+    const cacheKey=hash(`images-v2:${discoveryProvider()}:${site||''}:${query.toLowerCase()}:${page}`);
     if(rounds.has(cacheKey))return rounds.get(cacheKey);
     const job=(async()=>{
       const cache=await store.get('cache',cacheKey);
       if(cache&&cache.expires>Date.now())return cache.productIds;
-      const found=await discover(query,page,{hint:coverageSummary(profile.preferences,filters.category)});
+      const found=await discover(query,page,{hint:coverageSummary(profile.preferences,filters.category),site});
       const saved=await Promise.all(found.map(async p=>{const old=await store.get('product',p.id);return store.put('product',p.id,old?{...p,...old,image:old.image||p.image,images:old.images?.length?old.images:p.images,thumbnail:old.thumbnail||p.thumbnail}:p);}));
       remember(saved);
       const productIds=found.map(p=>p.id);

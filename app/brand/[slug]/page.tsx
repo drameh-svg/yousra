@@ -33,7 +33,7 @@ export default async function BrandPage({ params }: Props) {
                 {brand.name}
               </h1>
               <p style={{ fontSize: "13px", color: "rgba(245,245,245,0.65)", lineHeight: 1.6 }}>{brand.tagline}</p>
-              <p style={{ fontSize: "12px", color: "#DCFCFF", marginTop: "8px" }}>Find current pieces across stores</p>
+              <p style={{ fontSize: "12px", color: "#DCFCFF", marginTop: "8px" }}>Current pieces from {brand.domain}</p>
             </div>
           </div>
         )}
@@ -44,7 +44,8 @@ export default async function BrandPage({ params }: Props) {
           </h1>
         )}
 
-        <DiscoveryGrid query={name+" clothing"}/>
+        {/* Only this brand's own listings: filtered by its shop domain, and searches are limited to its site. */}
+        <DiscoveryGrid filters={brand?{brand:brand.domain,brandName:brand.name}:{brandName:name}}/>
       </div>
     </main>
   );

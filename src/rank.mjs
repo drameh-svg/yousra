@@ -6,6 +6,13 @@ import { productAesthetics, normalizeStyles, colorFamilies, isAbaya } from './ta
 
 export const tokens = value => (String(value||'').toLowerCase().match(/[\p{L}\p{N}]+/gu)||[]).map(x=>({dresses:'dress',skirts:'skirt',shirts:'shirt',blouses:'blouse',sweaters:'sweater',coats:'coat',jackets:'jacket',sleeves:'sleeve',trousers:'pants'}[x]||x));
 // Aesthetics and colour families are normalised so old tags, new tags and shades all line up.
+// A piece belongs to a brand when it's sold on the brand's own site, or a marketplace lists it under that brand.
+const squash=value=>String(value||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+export function fromBrand(p,domain,name=''){
+  let h='';try{h=new URL(p.url).hostname.replace(/^www\./,'').toLowerCase();}catch{}
+  if(h===domain||h.endsWith(`.${domain}`))return true;
+  const n=squash(name);return n.length>2&&[p.brand,p.store].some(v=>squash(v)===n||squash(v)===`${n}com`);
+}
 export function features(p) { return [...productAesthetics(p).map(x=>`style:${x}`),...colorFamilies(p.colors).map(x=>`color:${x}`),`category:${p.category}`,...(isAbaya(p)?['type:abaya']:[]), ...Object.entries(p.attributes||{}).filter(([,v])=>v&&v!=='unknown'&&v!=='any').map(([k,v])=>`${k}:${v}`)]; }
 export function preferenceWeights(profile, interactions, products, swipePhotos) {
   const weights={};
@@ -34,6 +41,7 @@ export function rankProducts(products, profile, interactions, swipes, filters={}
     if(!p.demo&&p.url&&p.productPage!==true&&/\/(collections|categories|category|search|cat|browse)(\/|$)|\/shop\/gender/i.test(new URL(p.url).pathname))return [];
     if(feed&&hidden.has(p.id)) return [];
     if(prefs.excludedBrands.some(b=>[p.brand,p.store].some(x=>String(x).toLowerCase().includes(b)))) return [];
+    if((filters.brand||filters.brandName)&&!fromBrand(p,filters.brand||'',filters.brandName)) return [];
     if(filters.category==='abaya'?!isAbaya(p):filters.category&&p.category!==filters.category) return [];
     const max=filters.maxPrice??prefs.budgetMax;
     if(max!=null && (p.price===null||p.price>max||p.currency!=='USD')) return [];

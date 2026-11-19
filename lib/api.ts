@@ -6,7 +6,7 @@ export interface Preferences {
 }
 export interface Profile { coveragePreset?:string; id:string; preferences:Preferences; onboarded:boolean; swipes:{id:string;like:boolean}[]; version:number }
 export interface Account {id:string;email:string}
-export interface Collection {id:string;name:string;productIds:string[];system?:boolean}
+export interface Collection {id:string;name:string;productIds:string[];system?:boolean;public?:boolean;ownerName?:string}
 export interface Reaction {liked?:boolean;disliked?:boolean;clicks?:number}
 export interface ApiProduct {
  id:string;title:string;description:string;store:string;brand?:string;price:number|null;currency:string|null;priceFrom?:boolean;priceRange?:{min:number;max:number}|null;priceSource?:string;priceCheckedAt?:string;priceNote?:string;
@@ -21,7 +21,7 @@ export interface Results {
  excludedIds?:string[];busy?:boolean;jobId?:string;canAdvance?:boolean;status?:string;processed?:number;
  discovered?:number;warnings?:string[];demo?:boolean;
 }
-export interface Filters {style?:string;color?:string;size?:string;category?:string;minPrice?:string;maxPrice?:string;shipping?:string}
+export interface Filters {style?:string;color?:string;size?:string;category?:string;minPrice?:string;maxPrice?:string;shipping?:string;brand?:string;brandName?:string}
 export class ApiError extends Error {constructor(public status:number,message:string){super(message)}}
 let refreshInFlight:Promise<boolean>|null=null;
 export async function api<T>(path:string,method='GET',data?:unknown,signal?:AbortSignal,retry=true):Promise<T>{

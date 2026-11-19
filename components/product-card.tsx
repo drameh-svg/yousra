@@ -7,6 +7,7 @@ import {isProductUrl} from '@/src/product-url.mjs';
 import {money,type ApiProduct} from '@/lib/api';
 import {useProductPrice} from '@/lib/use-product-price';
 import { useProductActions } from '@/lib/use-product-actions';
+import { SavePicker } from '@/components/save-picker';
 
 // Minimal interface accepted by this card — compatible with both the local
 // static Product type and the API-derived CatalogProduct.
@@ -25,7 +26,8 @@ export interface CardProduct {
 export function ProductCard({ product }: { product: CardProduct }) {
   const priceNode=useRef<HTMLDivElement>(null);
   const pricing=useProductPrice(product.raw,priceNode);
-  const {saved,liked,disliked,toggleSaved,react,loading} = useProductActions(product.id);
+  const {saved,liked,disliked,toggleSaved,react,loading,guest} = useProductActions(product.id);
+  const [picking, setPicking] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [imgError, setImgError] = useState(false);
@@ -52,7 +54,7 @@ export function ProductCard({ product }: { product: CardProduct }) {
         <a href={shopAvailable?product.storeUrl:`/search/results?q=${encodeURIComponent(product.title)}`} target={shopAvailable?"_blank":undefined} rel="noopener noreferrer" className="absolute bottom-4 left-1/2 -translate-x-1/2 inline-flex max-w-[calc(100%-24px)] items-center gap-1.5 rounded-full bg-white px-3 py-2 text-[11px] font-medium text-stone-900 shadow sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 transition-opacity" aria-label={shopAvailable?`Shop at ${product.store}`:`Find current listings for ${product.title}`} onClick={e => e.stopPropagation()}>
           <span className="truncate">{shopAvailable?`Shop at ${product.store}`:"Find current listings"}</span><ExternalLink size={11} className="shrink-0" />
         </a>
-        <button disabled={busy||loading} onClick={e => { e.preventDefault(); void action(() => toggleSaved()); }} aria-label={saved ? 'Unsave' : 'Save'} aria-pressed={saved} className="absolute top-3 right-3 p-1.5 rounded-full bg-white/80 backdrop-blur-sm shadow-sm hover:bg-white transition-colors disabled:opacity-50">
+        <button disabled={busy||loading} onClick={e => { e.preventDefault(); if (guest) void action(() => toggleSaved()); else setPicking(true); }} aria-label={saved ? 'Saved — change collections' : 'Save to a collection'} aria-pressed={saved} className="absolute top-3 right-3 p-1.5 rounded-full bg-white/80 backdrop-blur-sm shadow-sm hover:bg-white transition-colors disabled:opacity-50">
           <Bookmark size={14} className={saved ? 'fill-stone-900 text-stone-900' : 'text-stone-400'} />
         </button>
         <span className="absolute top-3 left-3 max-w-[calc(100%-60px)] truncate text-[10px] font-medium bg-white/80 backdrop-blur-sm text-stone-600 px-2 py-0.5 rounded-full border border-stone-100">{product.aesthetic}</span>
@@ -72,6 +74,7 @@ export function ProductCard({ product }: { product: CardProduct }) {
         {product.raw?.affiliate ? <p className="mt-1 text-[10px] text-stone-400">Affiliate link</p> : null}
         {error ? <p role="alert" className="mt-1 text-[11px] text-red-700">{error}</p> : null}
       </div>
+      {!guest && picking ? <SavePicker id={product.id} title={product.title} open={picking} onOpenChange={setPicking} /> : null}
     </div>
   );
 }

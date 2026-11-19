@@ -10,6 +10,10 @@ import { store,mutate } from './store.mjs';
 import { SURVEY,submitReview,summarize,reviewsCsv,isAdmin } from './reviews.mjs';
 import { background } from './background.mjs';
 import { productAesthetics } from './taxonomy.mjs';
+import { brandPreviews,parseBrands } from './brands.mjs';
+import { syncPublic,unpublish,listPublic,getPublic,shareName } from './collections.mjs';
+import { deleteAccount } from './account.mjs';
+import { quizItems,scoreQuiz,saveQuiz,validateAnswers,knownLevel,YES_REASONS,NO_REASONS } from './modesty-quiz.mjs';
 import { labelingItems,submitLabels,labelsJsonl,labelsCsv,labelAgreement } from './labels.mjs';
 import { defaultPreferences,validatePreferences,filtersFrom } from './preferences.mjs';
 import { onboarding,sampleProducts } from './seed.mjs';
@@ -176,6 +180,23 @@ export async function handle(request, context={}) {
     if(photo&&method==='GET'){const item=await product(photo[1]);if(!item)throw new HttpError(404,'Product not found');return productImage(item,Math.max(0,Math.min(5,Number(url.searchParams.get('index'))||0)));}
     const [p,lib]=await Promise.all([profile(u.id),library(u.id)]);
     const libraryAction=path.startsWith('/api/collections')||path==='/api/reactions'||/^\/api\/products\/[\w-]+\/reaction$/.test(path);
+    if(path==='/api/account'&&method==='DELETE')return await deleteAccount(request,u,await body(request));
+    if(path==='/api/modesty-quiz'&&method==='GET'){
+      const picked=quizItems(await catalog(),`${u.id}:${now().slice(0,10)}`);
+      return json({items:picked.map(({p})=>publicProduct(p)),yes:YES_REASONS,no:NO_REASONS});
+    }
+    if(path==='/api/modesty-quiz'&&method==='POST'){
+      const answers=validateAnswers((await body(request)).answers),levels=new Map();
+      for(const a of answers){const item=await product(a.productId);const level=item&&knownLevel(item);if(level)levels.set(a.productId,level);}
+      const result=scoreQuiz(answers,levels);background(saveQuiz(u.id,answers,result));return json(result);
+    }
+    if(path==='/api/public-collections'&&method==='GET'){const byId=new Map((await catalog()).map(x=>[x.id,x]));return json({collections:(await listPublic(byId)).map(c=>({...c,cover:c.cover.map(publicProduct)}))});}
+    const shared=path.match(/^\/api\/public-collections\/([\w-]+)$/);
+    if(shared&&method==='GET'){const byId=new Map((await catalog()).map(x=>[x.id,x]));const view=await getPublic(shared[1],byId);return json({...view,items:view.items.map(publicProduct)});}
+    if(path==='/api/brand-previews'&&method==='GET'){
+      const previews=brandPreviews(parseBrands(url.searchParams.get('brands')),await catalog(),p,interactions(lib),Math.max(1,Math.min(8,Number(url.searchParams.get('n'))||4)));
+      return json({brands:Object.fromEntries(Object.entries(previews).map(([d,v])=>[d,{items:v.items.map(publicProduct),total:v.total}]))});
+    }
     if(!p.onboarded&&!libraryAction)throw new HttpError(409,'Complete onboarding first');
     if(path==='/api/feed'&&method==='GET') {
       const {session,ranked}=await createFeed(p,lib,filtersFrom(Object.fromEntries(url.searchParams)));
@@ -220,11 +241,16 @@ export async function handle(request, context={}) {
     if(coll) {
       const collection=lib.collections.find(c=>c.id===coll[1]);if(!collection)throw new HttpError(404,'Collection not found');
       if(method==='GET') {const all=await catalog();return json({collection,items:all.filter(p=>collection.productIds.includes(p.id)).map(publicProduct)});}
-      if(method==='DELETE') {if(collection.system)throw new HttpError(400,'The Likes collection cannot be deleted');await mutate('library',u.id,u.id,libraryInitial(),l=>{l.collections=l.collections.filter(c=>c.id!==coll[1]);return l;});return json({ok:true});}
+      if(method==='DELETE') {if(collection.system)throw new HttpError(400,'The Likes collection cannot be deleted');await mutate('library',u.id,u.id,libraryInitial(),l=>{l.collections=l.collections.filter(c=>c.id!==coll[1]);return l;});await unpublish(u.id,coll[1]);return json({ok:true});}
       if(method==='PATCH') {const data=await body(request);if(data.productId&&!await product(data.productId))throw new HttpError(404,'Product not found');
         const updated=await mutate('library',u.id,u.id,libraryInitial(),l=>{const c=l.collections.find(x=>x.id===coll[1]);if(!c)throw new HttpError(404,'Collection not found');if(c.system)throw new HttpError(400,'Use product like/unlike for the Likes collection');
           if(data.name!==undefined){const n=text(data.name,60);if(!n)throw new HttpError(400,'Name required');c.name=n;}
-          if(data.productId){if(data.remove)c.productIds=c.productIds.filter(x=>x!==data.productId);else if(!c.productIds.includes(data.productId)){if(c.productIds.length>=500)throw new HttpError(400,'Collection item limit reached');c.productIds.push(data.productId);}}return l;});return json({collections:updated.collections});}
+          // Sharing: public collections appear in "Public collections" and can be opened from a link.
+          if(data.public!==undefined){if(typeof data.public!=='boolean')throw new HttpError(400,'Invalid sharing setting');c.public=data.public;}
+          if(data.ownerName!==undefined)c.ownerName=shareName(data.ownerName);
+          if(data.productId){if(data.remove)c.productIds=c.productIds.filter(x=>x!==data.productId);else if(!c.productIds.includes(data.productId)){if(c.productIds.length>=500)throw new HttpError(400,'Collection item limit reached');c.productIds.push(data.productId);}}return l;});
+        const changed=updated.collections.find(x=>x.id===coll[1]);if(changed?.public||data.public===false)await syncPublic(u.id,changed);
+        return json({collections:updated.collections});}
     }
     const prod=path.match(/^\/api\/products\/([\w-]+)(?:\/(reaction|outbound|image|price))?$/);
     if(prod) {

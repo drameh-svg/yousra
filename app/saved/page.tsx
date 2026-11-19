@@ -9,6 +9,7 @@ import { Bookmark } from "lucide-react";
 import { useSavedIds } from "@/lib/use-saved";
 import { products } from "@/lib/products";
 import { ProductCard } from "@/components/product-card";
+import { SavedPage as Collections } from "@/components/saved-page";
 
 export default function SavedPage() {
   const ids = useSavedIds();
@@ -17,6 +18,8 @@ export default function SavedPage() {
   const collection=session.collections.find(c=>!c.system&&c.name==='Saved');
   useEffect(()=>{let active=true;if(!session.user||!collection){queueMicrotask(()=>{if(active)setRemote([])});return()=>{active=false}}void api<{items:ApiProduct[]}>(`/collections/${collection.id}`).then(d=>{if(active){setRemote(d.items);setError('')}}).catch(e=>{if(active)setError(e.message)});return()=>{active=false}},[session.user,collection]);
   const savedProducts = session.user?remote.map(toCard):products.filter((p) => ids.includes(p.id));
+  // Signed-in shoppers get collections; guests keep the simple on-device saved list below.
+  if(session.user)return <Collections/>;
 
   return (
     <main style={{ minHeight: "100vh", background: "var(--bg)", padding: "32px 20px 80px" }}>

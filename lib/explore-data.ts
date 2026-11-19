@@ -45,9 +45,11 @@ export const categories = [
 ];
 
 // ── Spotlighted brands ─────────────────────────────────────────────────────
+// `domain` is the brand's own shop: brand pages and previews only show listings from it.
 export const brands = [
   {
     slug: "damson-madder",
+    domain: "damsonmadder.com",
     name: "Damson Madder",
     tagline: "Elevated basics made in Türkiye.",
     image: PIN("86/78/91/86789100253a24fdfa946221f11b61d5.png"),
@@ -55,6 +57,7 @@ export const brands = [
   },
   {
     slug: "shop-fatima-diallo",
+    domain: "shopfatimadiallo.com",
     name: "Shop Fatima Diallo",
     tagline: "Modest dressing for the modern woman.",
     image: PIN("f6/e6/42/f6e642d74775c03f1b9dfac7bc50b5c1.jpg"),
@@ -62,6 +65,7 @@ export const brands = [
   },
   {
     slug: "w-concept",
+    domain: "wconcept.com",
     name: "W Concept",
     tagline: "Seoul-fully created designer fashion.",
     image: PIN("82/82/b4/8282b4489ee37590e8a048e663938b2b.jpg"),
@@ -69,6 +73,7 @@ export const brands = [
   },
   {
     slug: "free-people",
+    domain: "freepeople.com",
     name: "Free People",
     tagline: "Bohemian spirit, long-line silhouettes.",
     image: PIN("87/f9/95/87f995d5388b0bc5cfba8307b7e56710.webp"),
@@ -76,6 +81,7 @@ export const brands = [
   },
   {
     slug: "lazy-oaf",
+    domain: "lazyoaf.com",
     name: "Lazy Oaf",
     tagline: "Playful, feminine, completely singular.",
     image: PIN("2a/9f/f7/2a9ff7f797e78957a56f89b16983c43c.jpg"),
@@ -83,6 +89,7 @@ export const brands = [
   },
   {
     slug: "jennah-boutique",
+    domain: "jennah-boutique.com",
     name: "Jennah Boutique",
     tagline: "Structured modest pieces from France.",
     image: PIN("38/39/11/383911a73b6804424da8260e305e3905.jpg"),

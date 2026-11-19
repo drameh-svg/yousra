@@ -58,6 +58,12 @@ export const store = {
     if (config().storage === 'supabase') await supa(`/rest/v1/records?kind=eq.${encodeURIComponent(kind)}&id=eq.${encodeURIComponent(key)}&owner=eq.${encodeURIComponent(owner)}`, { method: 'DELETE' });
     else (await db()).prepare('DELETE FROM records WHERE kind=? AND id=? AND owner=?').run(kind,key,owner);
   },
+  // Account deletion: every record this user owns (profile, library, feeds, labels, reviews, sessions…).
+  async removeOwned(owner) {
+    if (!owner) throw new HttpError(400, 'Owner required');
+    if (config().storage === 'supabase') await supa(`/rest/v1/records?owner=eq.${encodeURIComponent(owner)}`, { method: 'DELETE' });
+    else (await db()).prepare('DELETE FROM records WHERE owner=?').run(owner);
+  },
   async reserve(provider, dailyLimit, totalLimit) {
     if (config().storage === 'supabase') return await supa('/rest/v1/rpc/reserve_call', { method: 'POST', body: JSON.stringify({p_provider:provider,p_daily:dailyLimit,p_total:totalLimit}) });
     const sql = await db(), day = now().slice(0,10);

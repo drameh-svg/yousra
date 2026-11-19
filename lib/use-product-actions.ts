@@ -11,7 +11,8 @@ export function useProductActions(id:string){
  const [votes,setVotes]=useState<StyleVote[]>([]);
  useEffect(()=>{const sync=()=>setVotes(readLocalVotes());queueMicrotask(sync);window.addEventListener('yousra_reactions_change',sync);window.addEventListener('storage',sync);return()=>{window.removeEventListener('yousra_reactions_change',sync);window.removeEventListener('storage',sync)}},[]);
  const guest=!session.user;
- const saved=guest?local.saved:session.collections.some(c=>!c.system&&c.name==='Saved'&&c.productIds.includes(id));
+ // Saved = in any of her collections (Likes is the heart, not the bookmark).
+ const saved=guest?local.saved:session.collections.some(c=>!c.system&&c.productIds.includes(id));
  const reaction=guest?{liked:votes.some(v=>v.id===id&&v.like),disliked:votes.some(v=>v.id===id&&!v.like)}:session.reactions[id]||{};
  async function react(action:'like'|'dislike'|'clear'){
   if(session.loading)throw new Error('Your account is still loading. Please try again.');
@@ -20,5 +21,5 @@ export function useProductActions(id:string){
   writePrefs({styleVotes:next});localStorage.setItem(KEY,JSON.stringify(next));window.dispatchEvent(new Event('yousra_reactions_change'));
  }
  async function toggleSaved(){if(session.loading)throw new Error('Your account is still loading. Please try again.');if(guest)local.toggle();else await session.toggleSaved(id)}
- return {saved,liked:!!reaction.liked,disliked:!!reaction.disliked,react,toggleSaved,loading:session.loading};
+ return {saved,liked:!!reaction.liked,disliked:!!reaction.disliked,react,toggleSaved,loading:session.loading,guest};
 }

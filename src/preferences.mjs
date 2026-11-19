@@ -98,6 +98,9 @@ export function filtersFrom(input={}) {
   if (o.category) { const c=normalizeCategory(o.category); if(!c)throw new HttpError(400,'Unknown clothing category'); o.category=c; }
   if (o.style) o.style=normalizeStyle(o.style)[0]||o.style;
   if (o.color) o.color=colorFamilies([o.color])[0]||o.color;
+  // Brand pages: restrict to one retailer by its domain (and name, for marketplaces that list the brand).
+  if (input.brand) { const d=String(input.brand).toLowerCase().trim().replace(/^https?:\/\//,'').replace(/^www\./,'').replace(/\/.*$/,''); if(!/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(d))throw new HttpError(400,'Invalid brand'); o.brand=d; }
+  if (input.brandName) o.brandName=text(input.brandName,60);
   for (const k of ['minPrice','maxPrice']) if (input[k]!==undefined && input[k]!=='' && input[k]!==null) { const n=Number(input[k]); if (!Number.isFinite(n)||n<0||n>100000) throw new HttpError(400,'Invalid price'); o[k]=n; }
   if (o.minPrice!==undefined&&o.maxPrice!==undefined&&o.minPrice>o.maxPrice) throw new HttpError(400,'Minimum price exceeds maximum');
   return o;

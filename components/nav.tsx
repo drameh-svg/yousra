@@ -3,9 +3,10 @@
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import Link from "next/link";
-import { Search, Bookmark, User, Menu, X } from "lucide-react";
+import { Search, Bookmark, User, Menu, X, LogOut } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
+import { useSession } from "@/components/session-provider";
 
 const links = [
   { href: "/", label: "For You" },
@@ -18,6 +19,7 @@ const links = [
 export function Nav() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
+  const session = useSession();
 
   return (
     <header className="sticky top-0 z-50 w-full bg-[#FAF8F5]/90 backdrop-blur-md border-b border-stone-100">
@@ -51,6 +53,16 @@ export function Nav() {
           <Link href="/profile" aria-label="Profile" className="hover:text-stone-900 transition-colors p-1">
             <User size={18} />
           </Link>
+          {session.user && (
+            <button
+              onClick={() => void session.signOut()}
+              aria-label="Sign out"
+              className="hover:text-stone-900 transition-colors p-1"
+              title="Sign out"
+            >
+              <LogOut size={18} />
+            </button>
+          )}
         </div>
 
         {/* Mobile hamburger */}
@@ -80,6 +92,18 @@ export function Nav() {
                   {l.label}
                 </Link>
               ))}
+              {session.user && (
+                <>
+                  <Separator className="bg-stone-100" />
+                  <button
+                    onClick={() => { void session.signOut(); setOpen(false); }}
+                    className="text-sm text-left text-stone-500 hover:text-stone-900 transition-colors flex items-center gap-2"
+                  >
+                    <LogOut size={14} />
+                    Sign out
+                  </button>
+                </>
+              )}
             </nav>
           </SheetContent>
         </Sheet>

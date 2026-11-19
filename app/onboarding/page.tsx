@@ -10,14 +10,15 @@ import { writePrefs } from "@/lib/use-prefs";
 import { BRAND_LIST } from "@/lib/brands";
 import { products } from "@/lib/products";
 
-type Aesthetic = "Minimal" | "Romantic" | "Streetwear" | "Classic" | "Casual";
+type Aesthetic = "Y2K" | "Whimsy" | "90s Chic" | "Clean Girl" | "Alternative" | "Earthy";
 
 const AESTHETICS: { label: Aesthetic; image: string; description: string }[] = [
-  { label: "Minimal", image: products.find((p) => p.id === "1")!.image, description: "Clean lines, neutral tones" },
-  { label: "Romantic", image: products.find((p) => p.id === "7")!.image, description: "Floral, lace, soft drapes" },
-  { label: "Streetwear", image: products.find((p) => p.id === "13")!.image, description: "Urban, oversized, bold" },
-  { label: "Classic", image: products.find((p) => p.id === "19")!.image, description: "Timeless, tailored, refined" },
-  { label: "Casual", image: products.find((p) => p.id === "28")!.image, description: "Relaxed, everyday, easy" },
+  { label: "Y2K", image: products.find((p) => p.id === "13")!.image, description: "Cyber, metallic, futuristic" },
+  { label: "Whimsy", image: products.find((p) => p.id === "7")!.image, description: "Dreamy, playful, fairy-tale" },
+  { label: "90s Chic", image: products.find((p) => p.id === "20")!.image, description: "Sleek, tailored, effortless" },
+  { label: "Clean Girl", image: products.find((p) => p.id === "1")!.image, description: "Soft, natural, minimalist" },
+  { label: "Alternative", image: products.find((p) => p.id === "17")!.image, description: "Edgy, punk, indie spirit" },
+  { label: "Earthy", image: products.find((p) => p.id === "19")!.image, description: "Organic, warm, botanical" },
 ];
 
 const MAX_CHOICES = 5;
@@ -112,7 +113,7 @@ export default function OnboardingPage() {
               title="What's your style?"
               subtitle="Pick the styles you love. Next, just a few choices to fine-tune your feed."
             />
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "12px", width: "100%", marginBottom: "32px" }}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: "12px", width: "100%", marginBottom: "32px" }}
                  className="aesthetic-grid">
               {AESTHETICS.map((a) => {
                 const active = selectedAesthetics.includes(a.label);

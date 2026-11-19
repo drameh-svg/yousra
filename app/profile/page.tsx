@@ -9,8 +9,8 @@ import {accountPreferences} from "@/lib/profile-preferences";
 import { BRAND_LIST } from "@/lib/brands";
 import Link from "next/link";
 
-type Aesthetic = "Minimal" | "Romantic" | "Streetwear" | "Classic" | "Casual";
-const AESTHETICS: Aesthetic[] = ["Minimal", "Romantic", "Streetwear", "Classic", "Casual"];
+type Aesthetic = "Y2K" | "Whimsy" | "90s Chic" | "Clean Girl" | "Alternative" | "Earthy";
+const AESTHETICS: Aesthetic[] = ["Y2K", "Whimsy", "90s Chic", "Clean Girl", "Alternative", "Earthy"];
 const SIZES = ["XS", "S", "M", "L", "XL", "2XL"];
 const BUDGETS = ["Under $50", "$50–$100", "$100–$200", "$200+"];
 const MODESTY_OPTIONS: Prefs["modesty"][] = ["Conservative", "Moderate", "Relaxed"];

@@ -1,5 +1,21 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: 'Alte Haas Grotesk';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/AlteHaasGroteskRegular.woff') format('woff');
+}
+
+@font-face {
+  font-family: 'Alte Haas Grotesk';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/AlteHaasGroteskBold.woff') format('woff');
+}
+
 :root {
   --bg:       #F5F5F5;
   --fg:       #352D27;

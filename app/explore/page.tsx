@@ -5,14 +5,15 @@ import Link from "next/link";
 import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { ProductCard } from "@/components/product-card";
 import { products } from "@/lib/products";
-import { spotlighted, categories, brands, trending, alternatives } from "@/lib/explore-data";
+import { spotlighted, categories, brands, trending } from "@/lib/explore-data";
 
 const aestheticTiles = [
-  { label: "Minimal", slug: "minimal", image: products.find((p) => p.id === "1")!.image },
-  { label: "Romantic", slug: "romantic", image: products.find((p) => p.id === "7")!.image },
-  { label: "Streetwear", slug: "streetwear", image: products.find((p) => p.id === "13")!.image },
-  { label: "Classic", slug: "classic", image: products.find((p) => p.id === "19")!.image },
-  { label: "Casual", slug: "casual", image: products.find((p) => p.id === "28")!.image },
+  { label: "Y2K", slug: "y2k", image: products.find((p) => p.id === "13")!.image },
+  { label: "Whimsy", slug: "whimsy", image: products.find((p) => p.id === "7")!.image },
+  { label: "90s Chic", slug: "90s-chic", image: products.find((p) => p.id === "20")!.image },
+  { label: "Clean Girl", slug: "clean-girl", image: products.find((p) => p.id === "1")!.image },
+  { label: "Alternative", slug: "alternative", image: products.find((p) => p.id === "17")!.image },
+  { label: "Earthy", slug: "earthy", image: products.find((p) => p.id === "19")!.image },
 ];
 
 export default function ExplorePage() {
@@ -148,37 +149,6 @@ export default function ExplorePage() {
           </div>
         </section>
 
-        {/* ── Brands like… ── */}
-        <section style={{ marginBottom: "52px" }}>
-          <SectionHeader title="Love a brand's style?" subtitle="Find modest alternatives with a similar feel." />
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "12px" }}
-               className="alt-grid">
-            {alternatives.map((alt) => (
-              <Link key={alt.slug} href={`/alternatives/${alt.slug}`}
-                style={{ display: "block", textDecoration: "none", borderRadius: "14px", overflow: "hidden", position: "relative" }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={alt.image} alt={alt.brand}
-                  style={{ width: "100%", aspectRatio: "4/3", objectFit: "cover", display: "block" }} />
-                <div style={{
-                  position: "absolute", inset: 0,
-                  background: "linear-gradient(to top, rgba(53,45,39,0.82) 0%, transparent 55%)",
-                  display: "flex", flexDirection: "column", justifyContent: "flex-end", padding: "20px",
-                }}>
-                  <p style={{ fontSize: "10px", color: "#DCFCFF", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "5px" }}>
-                    Modest alternatives to
-                  </p>
-                  <p style={{ fontFamily: "var(--font-serif,'Instrument Serif',Georgia,serif)", fontSize: "20px", color: "#F5F5F5", marginBottom: "6px" }}>
-                    {alt.brand}
-                  </p>
-                  <p style={{ fontSize: "12px", color: "rgba(245,245,245,0.7)", lineHeight: 1.4 }}>{alt.description}</p>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", marginTop: "10px", fontSize: "12px", fontWeight: 600, color: "#F5F5F5" }}>
-                    Explore alternatives <ArrowRight size={12} />
-                  </span>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </section>
       </div>
 
       <style>{`
@@ -188,7 +158,6 @@ export default function ExplorePage() {
           .hero-grid    { grid-template-columns: 1fr !important; }
           .cat-grid     { grid-template-columns: repeat(3,1fr) !important; }
           .brands-grid  { grid-template-columns: repeat(2,1fr) !important; }
-          .alt-grid     { grid-template-columns: 1fr !important; }
         }
         @media (max-width: 540px) {
           .cat-grid     { grid-template-columns: repeat(2,1fr) !important; }

@@ -2,18 +2,24 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import {DiscoveryGrid} from "@/components/discovery-grid";
 
-type AestheticSlug = "minimal" | "romantic" | "streetwear" | "classic" | "casual";
-const SLUGS: AestheticSlug[] = ["minimal", "romantic", "streetwear", "classic", "casual"];
+const AESTHETIC_SLUGS = [
+  { slug: "y2k", label: "Y2K" },
+  { slug: "whimsy", label: "Whimsy" },
+  { slug: "90s-chic", label: "90s Chic" },
+  { slug: "clean-girl", label: "Clean Girl" },
+  { slug: "alternative", label: "Alternative" },
+  { slug: "earthy", label: "Earthy" },
+];
 
 interface Props { params: Promise<{ slug: string }> }
 
 export function generateStaticParams() {
-  return SLUGS.map((slug) => ({ slug }));
+  return AESTHETIC_SLUGS.map(({ slug }) => ({ slug }));
 }
 
 export default async function AestheticPage({ params }: Props) {
   const { slug } = await params;
-  const label = slug.charAt(0).toUpperCase() + slug.slice(1);
+  const label = AESTHETIC_SLUGS.find(a => a.slug === slug)?.label ?? slug.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
 
   return (
     <main style={{ minHeight: "100vh", background: "var(--bg)", padding: "28px 20px 80px" }}>

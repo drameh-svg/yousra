@@ -18,7 +18,8 @@ export function SessionProvider({children}:{children:ReactNode}){
    // so pages that don't require auth (For You, Explore, etc.) still render instead of showing an error.
    const msg=e instanceof Error?e.message:'';
    const isUnconfigured=msg.includes('AUTH_MODE')||msg.includes('STORAGE')||msg.includes('Local mode');
-   if((e instanceof ApiError&&e.status===401)||isUnconfigured){setUser(null);setProfile(null);setCollections([]);setReactions({});setError('');}
+   const isNotConfigured503=e instanceof ApiError&&e.status===503;
+   if((e instanceof ApiError&&e.status===401)||isUnconfigured||isNotConfigured503){setUser(null);setProfile(null);setCollections([]);setReactions({});setError('');}
    else setError(msg||'Could not connect.');
   }
   finally{setLoading(false);}

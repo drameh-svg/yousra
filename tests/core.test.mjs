@@ -202,13 +202,13 @@ test('strict stock mode: live feed expands with indexed images, deduplicates pro
   assert.equal(next.items.length,1);assert.ok(first.items.every(p=>p.id!==next.items[0].id));
   const raw=await store.get('product',next.items[0].id);await store.put('product',raw.id,{...raw,analyzedAt:new Date().toISOString()});
   await a(`/feed/${initial.feedId}/advance?offset=${next.cursorEnd}`,'POST',{});
-  process.env.SERPER_DAILY_LIMIT='0';
+  process.env.SERPER_DAILY_LIMIT='0';process.env.SERPER_LIMIT_FLOOR='false';
   const stopped=(await a(`/feed/${initial.feedId}/advance?offset=${next.cursorEnd}`,'POST',{})).data;
   assert.equal(stopped.canDiscover,false);assert.ok(stopped.warnings.some(x=>x.includes('cap')));
  }finally{
   globalThis.fetch=originalFetch;
   if(oldKey===undefined)delete process.env.SERPER_API_KEY;else process.env.SERPER_API_KEY=oldKey;
-  if(oldLimit===undefined)delete process.env.SERPER_DAILY_LIMIT;else process.env.SERPER_DAILY_LIMIT=oldLimit;
+  delete process.env.SERPER_LIMIT_FLOOR;if(oldLimit===undefined)delete process.env.SERPER_DAILY_LIMIT;else process.env.SERPER_DAILY_LIMIT=oldLimit;
   delete process.env.REQUIRE_VERIFIED_STOCK;delete process.env.FEED_PREWARM;
  }
 });

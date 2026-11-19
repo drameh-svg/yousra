@@ -1,4 +1,5 @@
 import { HttpError, number, text } from './util.mjs';
+import { normalizeCategory, normalizeStyle, colorFamilies } from './taxonomy.mjs';
 
 export const categories = ['dress','skirt','top','pants','outerwear'];
 export const choices = {
@@ -92,8 +93,11 @@ export function predictedLevel(product) {
 }
 export function filtersFrom(input={}) {
   const o = {};
-  for (const k of ['style','color','size','category','shipping']) if (input[k]) o[k]=text(input[k],60).toLowerCase();
-  if (o.category && !categories.includes(o.category)) throw new HttpError(400,'Unknown clothing category');
+  for (const k of ['style','color','size','category','shipping']) if (input[k]) o[k]=text(input[k],60).toLowerCase().trim();
+  // The For You panel sends labels like "Dresses", "Abayas", "90s Chic"; accept them in any casing or plural.
+  if (o.category) { const c=normalizeCategory(o.category); if(!c)throw new HttpError(400,'Unknown clothing category'); o.category=c; }
+  if (o.style) o.style=normalizeStyle(o.style)[0]||o.style;
+  if (o.color) o.color=colorFamilies([o.color])[0]||o.color;
   for (const k of ['minPrice','maxPrice']) if (input[k]!==undefined && input[k]!=='' && input[k]!==null) { const n=Number(input[k]); if (!Number.isFinite(n)||n<0||n>100000) throw new HttpError(400,'Invalid price'); o[k]=n; }
   if (o.minPrice!==undefined&&o.maxPrice!==undefined&&o.minPrice>o.maxPrice) throw new HttpError(400,'Minimum price exceeds maximum');
   return o;

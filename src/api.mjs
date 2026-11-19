@@ -3,12 +3,13 @@ import {discoveryProvider} from './claude.mjs';
 import {isProductUrl} from './product-url.mjs';
 import {external,allowedByRobots} from './network.mjs';
 import {curatedProducts} from './curated.mjs';
-import {createFeed,readFeed,feedView,advanceFeed,warmRound} from './feed.mjs';
+import {createFeed,readFeed,feedView,advanceFeed,warmRound,buildStarterPool} from './feed.mjs';
 import {productImage} from './media.mjs';
 import { signIn,signOut,user,refresh,assertEnvironment } from './auth.mjs';
 import { store,mutate } from './store.mjs';
 import { SURVEY,submitReview,summarize,reviewsCsv,isAdmin } from './reviews.mjs';
 import { background } from './background.mjs';
+import { productAesthetics } from './taxonomy.mjs';
 import { labelingItems,submitLabels,labelsJsonl,labelsCsv,labelAgreement } from './labels.mjs';
 import { defaultPreferences,validatePreferences,filtersFrom } from './preferences.mjs';
 import { onboarding,sampleProducts } from './seed.mjs';
@@ -29,7 +30,8 @@ function shopUrl(p) {
 }
 function publicProduct(p) {
   const shop=shopUrl(p);
-  return {...p,price:Number.isFinite(p.price)&&p.price>0&&p.currency?p.price:null,originalImage:p.image,image:p.image&&!p.demo?`/api/products/${p.id}/image`:p.image,images:p.demo?p.images:(p.images||[]).map((_,i)=>`/api/products/${p.id}/image?index=${i}`),affiliate:shop.affiliate,shopPath:`/api/products/${p.id}/outbound`,sourceUrl:p.url,shopAvailable:isProductUrl(p.url)&&p.productPage!==false};
+  // Cards show the six current aesthetics, whatever names the product was tagged with when it was analysed.
+  return {...p,styles:productAesthetics(p),price:Number.isFinite(p.price)&&p.price>0&&p.currency?p.price:null,originalImage:p.image,image:p.image&&!p.demo?`/api/products/${p.id}/image`:p.image,images:p.demo?p.images:(p.images||[]).map((_,i)=>`/api/products/${p.id}/image?index=${i}`),affiliate:shop.affiliate,shopPath:`/api/products/${p.id}/outbound`,sourceUrl:p.url,shopAvailable:isProductUrl(p.url)&&p.productPage!==false};
 }
 function pages(items,url) {const offset=Math.max(0,Number(url.searchParams.get('offset'))||0),limit=Math.max(1,Math.min(48,Number(url.searchParams.get('limit'))||24));return {items:items.slice(offset,offset+limit).map(publicProduct),total:items.length,nextOffset:offset+limit<items.length?offset+limit:null};}
 async function product(key) {return await store.get('product',key)||curatedProducts.find(x=>x.id===key)||(config().demo?sampleProducts.find(x=>x.id===key):null);}
@@ -119,6 +121,12 @@ export async function handle(request, context={}) {
     }
     if(path==='/api/auth/signout'&&method==='POST')return await signOut(request);
     if(path==='/api/auth/refresh'&&method==='POST')return await refresh(request);
+    // Daily starter-pool rebuild (vercel.json cron). Vercel sends "Authorization: Bearer $CRON_SECRET".
+    if(path==='/api/cron/starter'&&method==='GET'){
+      if(!process.env.CRON_SECRET)throw new HttpError(503,'Set CRON_SECRET to enable the scheduled starter pool');
+      if(request.headers.get('authorization')!==`Bearer ${process.env.CRON_SECRET}`)throw new HttpError(401,'Unauthorized');
+      const pool=await buildStarterPool({force:true});return json({ok:true,products:pool?.products?.length||0,queries:pool?.queries||[],builtAt:pool?.builtAt||null});
+    }
     if(path==='/api/reviews/form'&&method==='GET')return json(SURVEY);
     if(path==='/api/reviews'&&method==='POST'){
       const account=await user(request).catch(()=>null);

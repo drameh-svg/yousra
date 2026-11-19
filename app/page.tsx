@@ -32,6 +32,8 @@ function HomeFeed() {
   const [active,setActive]=useState<Aesthetic|null>(null);
   const [showPanel, setShowPanel] = useState(false);
   const [advanced, setAdvanced] = useState<AdvancedFilters>(DEFAULT_ADVANCED);
+  // The panel edits a draft; the feed reloads once on Apply instead of on every tap or keystroke.
+  const [draft, setDraft] = useState<AdvancedFilters>(DEFAULT_ADVANCED);
   const panelRef = useRef<HTMLDivElement>(null);
 
   const catalogParams: Record<string, string> = {};
@@ -39,21 +41,16 @@ function HomeFeed() {
   if (advanced.color) catalogParams.color = advanced.color.toLowerCase();
   if (advanced.size) catalogParams.size = advanced.size.toLowerCase();
   if (advanced.clothingType) catalogParams.category = advanced.clothingType.toLowerCase();
+  // Price is filtered on the server so every page of the feed respects it, not just what is already loaded.
+  const priceMin = Number(advanced.priceMin), priceMax = Number(advanced.priceMax);
+  if (advanced.priceMin && Number.isFinite(priceMin) && priceMin >= 0) catalogParams.minPrice = String(priceMin);
+  if (advanced.priceMax && Number.isFinite(priceMax) && priceMax > 0 && !(advanced.priceMin && priceMax < priceMin)) catalogParams.maxPrice = String(priceMax);
 
   const catalog=useCatalog('',catalogParams);
   const sentinel=useRef<HTMLDivElement>(null);
   const {canLoad,loading,more,error,loadMore}=catalog;
 
-  let filtered=catalog.items.filter(p=>!session.reactions[p.id]?.disliked);
-  if (advanced.priceMin || advanced.priceMax) {
-    filtered = filtered.filter(p => {
-      const price = parseFloat(String(p.price ?? '').replace(/[^0-9.]/g, ''));
-      if (isNaN(price)) return true;
-      if (advanced.priceMin && price < parseFloat(advanced.priceMin)) return false;
-      if (advanced.priceMax && price > parseFloat(advanced.priceMax)) return false;
-      return true;
-    });
-  }
+  const filtered=catalog.items.filter(p=>!session.reactions[p.id]?.disliked);
 
   useEffect(()=>{
     const node=sentinel.current;
@@ -129,7 +126,7 @@ function HomeFeed() {
 
         {/* Advanced filter toggle */}
         <button
-          onClick={() => setShowPanel(v => !v)}
+          onClick={() => { if (!showPanel) setDraft(advanced); setShowPanel(v => !v); }}
           aria-label="Advanced filters"
           aria-expanded={showPanel}
           style={{
@@ -164,8 +161,8 @@ function HomeFeed() {
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
               <p style={{ fontSize: "13px", fontWeight: 700, color: "#352D27" }}>Advanced filters</p>
-              {hasAdvanced && (
-                <button onClick={() => setAdvanced(DEFAULT_ADVANCED)} style={{ fontSize: "11px", color: "#637180", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>
+              {Object.values(draft).some(Boolean) && (
+                <button onClick={() => setDraft(DEFAULT_ADVANCED)} style={{ fontSize: "11px", color: "#637180", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>
                   Reset
                 </button>
               )}
@@ -174,8 +171,8 @@ function HomeFeed() {
             <FilterGroup label="Clothing type">
               <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
                 {CLOTHING_TYPES.map(t => (
-                  <PillButton key={t} label={t} active={advanced.clothingType === t}
-                    onClick={() => setAdvanced(f => ({ ...f, clothingType: f.clothingType === t ? "" : t }))} />
+                  <PillButton key={t} label={t} active={draft.clothingType === t}
+                    onClick={() => setDraft(f => ({ ...f, clothingType: f.clothingType === t ? "" : t }))} />
                 ))}
               </div>
             </FilterGroup>
@@ -183,8 +180,8 @@ function HomeFeed() {
             <FilterGroup label="Size">
               <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
                 {SIZES.map(s => (
-                  <PillButton key={s} label={s} active={advanced.size === s}
-                    onClick={() => setAdvanced(f => ({ ...f, size: f.size === s ? "" : s }))} />
+                  <PillButton key={s} label={s} active={draft.size === s}
+                    onClick={() => setDraft(f => ({ ...f, size: f.size === s ? "" : s }))} />
                 ))}
               </div>
             </FilterGroup>
@@ -192,8 +189,8 @@ function HomeFeed() {
             <FilterGroup label="Color">
               <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
                 {COLORS.map(c => (
-                  <PillButton key={c} label={c} active={advanced.color === c}
-                    onClick={() => setAdvanced(f => ({ ...f, color: f.color === c ? "" : c }))} />
+                  <PillButton key={c} label={c} active={draft.color === c}
+                    onClick={() => setDraft(f => ({ ...f, color: f.color === c ? "" : c }))} />
                 ))}
               </div>
             </FilterGroup>
@@ -202,22 +199,22 @@ function HomeFeed() {
               <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
                 <input
                   type="number" min="0" placeholder="Min $"
-                  value={advanced.priceMin}
-                  onChange={e => setAdvanced(f => ({ ...f, priceMin: e.target.value }))}
+                  value={draft.priceMin}
+                  onChange={e => setDraft(f => ({ ...f, priceMin: e.target.value }))}
                   style={{ flex: 1, height: "36px", padding: "0 10px", border: "1px solid rgba(53,45,39,0.15)", borderRadius: "8px", fontSize: "13px", color: "#352D27", outline: "none" }}
                 />
                 <span style={{ fontSize: "12px", color: "#637180" }}>–</span>
                 <input
                   type="number" min="0" placeholder="Max $"
-                  value={advanced.priceMax}
-                  onChange={e => setAdvanced(f => ({ ...f, priceMax: e.target.value }))}
+                  value={draft.priceMax}
+                  onChange={e => setDraft(f => ({ ...f, priceMax: e.target.value }))}
                   style={{ flex: 1, height: "36px", padding: "0 10px", border: "1px solid rgba(53,45,39,0.15)", borderRadius: "8px", fontSize: "13px", color: "#352D27", outline: "none" }}
                 />
               </div>
             </FilterGroup>
 
             <button
-              onClick={() => setShowPanel(false)}
+              onClick={() => { setAdvanced(draft); setShowPanel(false); }}
               style={{ width: "100%", marginTop: "4px", height: "38px", background: "#352D27", color: "#F5F5F5", border: "none", borderRadius: "999px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}
             >
               Apply
@@ -256,7 +253,7 @@ function HomeFeed() {
         {error?<p role="alert" style={{textAlign:'center',fontSize:13,marginTop:20}}>{error} <button onClick={catalog.reload} style={{textDecoration:'underline'}}>Try again</button></p>:null}
         {catalog.response?.warnings?.map(w=><p key={w} role="status" style={{textAlign:'center',fontSize:12,color:'var(--muted)',marginTop:12}}>{w}</p>)}
         <div ref={sentinel} style={{textAlign:'center',padding:'32px 0'}}>
-          {loading||more?<p role="status" style={{fontSize:13,color:'var(--muted)'}}>{more?'Finding more pieces…':'Finding pieces for you…'}</p>:canLoad?<button onClick={()=>void loadMore()} style={{border:'1px solid var(--border)',background:'white',borderRadius:999,padding:'10px 24px',cursor:'pointer'}}>More pieces</button>:filtered.length?<p style={{fontSize:12,color:'var(--muted)'}}>You're up to date for now. <button onClick={catalog.reload} style={{textDecoration:'underline'}}>Refresh discoveries</button></p>:null}
+          {loading||more?<p role="status" style={{fontSize:13,color:'var(--muted)'}}>{more?'Finding more pieces…':'Finding pieces for you…'}</p>:canLoad?<button onClick={()=>void loadMore()} style={{border:'1px solid var(--border)',background:'white',borderRadius:999,padding:'10px 24px',cursor:'pointer'}}>More pieces</button>:filtered.length?<p style={{fontSize:12,color:'var(--muted)'}}>You&apos;re up to date for now. <button onClick={catalog.reload} style={{textDecoration:'underline'}}>Refresh discoveries</button></p>:null}
         </div>
       </section>
     </main>

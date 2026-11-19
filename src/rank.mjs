@@ -2,14 +2,16 @@ import {isProductUrl} from './product-url.mjs';
 import {curatedProducts} from './curated.mjs';
 import {contentModel,cosine,diversify,explore} from './recommend.mjs';
 import { modestyMatch } from './preferences.mjs';
+import { productAesthetics, normalizeStyles, colorFamilies, isAbaya } from './taxonomy.mjs';
 
 export const tokens = value => (String(value||'').toLowerCase().match(/[\p{L}\p{N}]+/gu)||[]).map(x=>({dresses:'dress',skirts:'skirt',shirts:'shirt',blouses:'blouse',sweaters:'sweater',coats:'coat',jackets:'jacket',sleeves:'sleeve',trousers:'pants'}[x]||x));
-export function features(p) { return [...(p.styles||[]).map(x=>`style:${x}`),...(p.colors||[]).map(x=>`color:${x}`),`category:${p.category}`, ...Object.entries(p.attributes||{}).filter(([,v])=>v&&v!=='unknown'&&v!=='any').map(([k,v])=>`${k}:${v}`)]; }
+// Aesthetics and colour families are normalised so old tags, new tags and shades all line up.
+export function features(p) { return [...productAesthetics(p).map(x=>`style:${x}`),...colorFamilies(p.colors).map(x=>`color:${x}`),`category:${p.category}`,...(isAbaya(p)?['type:abaya']:[]), ...Object.entries(p.attributes||{}).filter(([,v])=>v&&v!=='unknown'&&v!=='any').map(([k,v])=>`${k}:${v}`)]; }
 export function preferenceWeights(profile, interactions, products, swipePhotos) {
   const weights={};
   const add=(key,v)=>weights[key]=(weights[key]||0)+v;
   for(const vote of profile.styleVotes||[]){const item=curatedProducts.find(p=>p.id===vote.id);if(item)for(const feature of features(item))add(feature,vote.like?1:-0.7);}
-  for (const s of profile.preferences.styles) add(`style:${s}`,2);
+  for (const s of normalizeStyles(profile.preferences.styles)) add(`style:${s}`,2);
   for (const c of profile.preferences.colors) add(`color:${c}`,1.5);
   for (const swipe of profile.swipes||[]) { const p=swipePhotos.find(x=>x.id===swipe.id); if(p) features(p).forEach(f=>add(f,swipe.like?0.6:-0.2)); }
   const catalog=new Map(products.map(p=>[p.id,p]));
@@ -32,18 +34,21 @@ export function rankProducts(products, profile, interactions, swipes, filters={}
     if(!p.demo&&p.url&&p.productPage!==true&&/\/(collections|categories|category|search|cat|browse)(\/|$)|\/shop\/gender/i.test(new URL(p.url).pathname))return [];
     if(feed&&hidden.has(p.id)) return [];
     if(prefs.excludedBrands.some(b=>[p.brand,p.store].some(x=>String(x).toLowerCase().includes(b)))) return [];
-    if(filters.category&&p.category!==filters.category) return [];
+    if(filters.category==='abaya'?!isAbaya(p):filters.category&&p.category!==filters.category) return [];
     const max=filters.maxPrice??prefs.budgetMax;
     if(max!=null && (p.price===null||p.price>max||p.currency!=='USD')) return [];
     if(filters.minPrice!=null && (p.price===null||p.price<filters.minPrice||p.currency!=='USD')) return [];
     if(filters.color){
-      const titleWords=new Set(tokens(p.title));
-      const explicitColors=['black','white','blue','navy','green','pink','red','brown','beige','cream','gray','purple','yellow'].filter(c=>titleWords.has(c));
-      if(!p.colors?.includes(filters.color)||(explicitColors.length===1&&!explicitColors.includes(filters.color)))return [];
+      // A title that names a colour wins over model tags (e.g. a "Black abaya" photographed on a beige set).
+      const named=colorFamilies([p.title]);
+      if(named.length?!named.includes(filters.color):!colorFamilies(p.colors).includes(filters.color))return [];
     }
-    if(filters.style&&!p.styles?.includes(filters.style)) return [];
-    if(filters.size&&!p.sizes?.map(x=>x.toLowerCase()).includes(filters.size)) return [];
-    if(!filters.size&&prefs.sizes?.length&&p.sizes?.length&&!p.sizes.some(x=>prefs.sizes.includes(String(x).toLowerCase())))return [];
+    if(filters.style&&!productAesthetics(p).includes(filters.style)) return [];
+    // Most retailers don't expose sizes. Confirmed sizes must match; unconfirmed ones stay, ranked lower and labelled.
+    const knownSizes=(p.sizes||[]).map(x=>String(x).toLowerCase());
+    if(filters.size&&knownSizes.length&&!knownSizes.includes(filters.size)) return [];
+    const sizeUnconfirmed=!!filters.size&&!knownSizes.length;
+    if(!filters.size&&prefs.sizes?.length&&knownSizes.length&&!knownSizes.some(x=>prefs.sizes.includes(x)))return [];
     if(filters.shipping==='confirmed'&&p.shippingUS!=='yes') return [];
     if(p.shippingUS==='no') return [];
     const modest=modestyMatch(p,prefs); if(!modest.pass) return [];
@@ -53,13 +58,14 @@ export function rankProducts(products, profile, interactions, swipes, filters={}
     const taste=features(p).reduce((sum,f)=>sum+(weights[f]||0),0)/Math.sqrt(Math.max(1,features(p).length));
     const learned=signals.reduce((sum,x)=>sum+x.weight*cosine(model.vector(p),model.vector(x.p)),0)/Math.sqrt(Math.max(1,signals.length));
     const uncertain=modest.confidence<0.65 || (p.analysisSource!=='vision+description'&&p.analysisSource!=='curated-reference');
-    const styleMatch=p.styles?.some(s=>prefs.styles.includes(s))?1:0;
-    const colorMatch=p.colors?.some(c=>prefs.colors.includes(c))?1:0;
+    const myStyles=normalizeStyles(prefs.styles),myColors=colorFamilies(prefs.colors);
+    const styleMatch=productAesthetics(p).some(s=>myStyles.includes(s))?1:0;
+    const colorMatch=colorFamilies(p.colors).some(c=>myColors.includes(c))?1:0;
     const normalized=value=>String(value||'').toLowerCase().replace(/[^a-z0-9]/g,'');
     const brandMatch=(prefs.preferredBrands||[]).some(b=>[p.brand,p.store].some(value=>{const brand=normalized(b),store=normalized(value);return brand.length>2?store.includes(brand):store===brand||store===brand+'com'}));
-    const score=lexical*80+styleMatch*50+colorMatch*20+(brandMatch?35:0)+taste*3+learned*25+modest.confidence*8-(uncertain?4:0)+(p.shippingUS==='yes'?2:0);
+    const score=lexical*80+styleMatch*50+colorMatch*20+(brandMatch?35:0)+taste*3+learned*25+modest.confidence*8-(uncertain?4:0)+(p.shippingUS==='yes'?2:0)-(sizeUnconfirmed?30:0);
     const affinity=styleMatch*50+colorMatch*20+(brandMatch?35:0)+taste*3+learned*25;
-    return [{...p,match:{score:Math.round(score*100)/100,affinity:Math.round(affinity*100)/100,confidence:modest.confidence,uncertain,reasons:[...modest.reasons,...(learned>0.3?['Similar to pieces you liked or saved']:[]),...(styleMatch?['Matches your styles']:[]),...(colorMatch?['Matches your colors']:[]),...(brandMatch?['From a brand you like']:[])]}}];
+    return [{...p,match:{score:Math.round(score*100)/100,affinity:Math.round(affinity*100)/100,confidence:modest.confidence,uncertain,reasons:[...modest.reasons,...(sizeUnconfirmed?['Size not confirmed']:[]),...(learned>0.3?['Similar to pieces you liked or saved']:[]),...(styleMatch?['Matches your styles']:[]),...(colorMatch?['Matches your colors']:[]),...(brandMatch?['From a brand you like']:[])]}}];
   }).sort((a,b)=>b.match.score-a.match.score||a.id.localeCompare(b.id));
   return feed?explore(diversify(ranked,model)):ranked;
 }

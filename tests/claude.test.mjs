@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-process.env.AUTH_MODE='local';process.env.STORAGE='local';process.env.NODE_ENV='test';process.env.CATALOG_CACHE_MS='0';process.env.PRIORITY_SITES='';
+process.env.AUTH_MODE='local';process.env.STORAGE='local';process.env.NODE_ENV='test';process.env.CATALOG_CACHE_MS='0';process.env.PRIORITY_SITES='';process.env.STARTER_POOL='false';
 for(const k of ['SERPER_API_KEY','GEMINI_API_KEY','ANTHROPIC_API_KEY','DISCOVERY_PROVIDER','VISION_PROVIDER','REQUIRE_VERIFIED_STOCK','VERCEL'])delete process.env[k];
 process.env.LOCAL_DB_PATH=join(await mkdtemp(join(tmpdir(),'yousra-claude-')),'test.sqlite');
 const {claudeDiscover,discoveryProvider,parseJson}=await import('../src/claude.mjs');

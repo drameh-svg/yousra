@@ -7,6 +7,7 @@ import {rankProducts,preferenceWeights} from './rank.mjs';
 import {onboarding,sampleProducts} from './seed.mjs';
 import {config,hash,id,now,HttpError} from './util.mjs';
 import {background} from './background.mjs';
+import {normalizeStyles,AESTHETIC_SEARCH} from './taxonomy.mjs';
 import {strictStock} from './stock.mjs';
 
 export const feedInteractions=lib=>Object.entries(lib.reactions).map(([productId,r])=>({...r,productId,saved:lib.collections.some(c=>!c.system&&c.productIds.includes(productId))}));
@@ -19,22 +20,107 @@ async function products({fresh=false}={}){
 function remember(updated){if(!catalog)return;const byId=new Map(catalog.list.map(p=>[p.id,p]));for(const p of updated)byId.set(p.id,p);catalog={...catalog,list:[...byId.values()]};}
 export const forgetCatalog=()=>{catalog=null;};
 function eligible(all,p,lib,filters){return rankProducts(config().demo?all:all.filter(x=>x.image&&x.productPage!==false),p,feedInteractions(lib),onboarding,filters,'',true,[...all,...curatedProducts]);}
+// Brands every feed search rotates through (FEED_BRANDS, comma-separated), after the shopper's own favourites.
+export const feedBrands=()=>[...new Set(String(process.env.FEED_BRANDS||'').split(',').map(x=>x.trim()).filter(x=>x&&x.length<=40))].slice(0,40);
+const gcd=(a,b)=>b?gcd(b,a%b):a;
 export function feedQuery(profile,interactions,all,round,filters={}) {
   const prefs=profile.preferences,weights=preferenceWeights(profile,interactions,all,onboarding);
   const best=(prefix,fallback)=>Object.entries(weights).filter(([k,v])=>k.startsWith(prefix)&&v>0).sort((a,b)=>b[1]-a[1]).map(([k])=>k.slice(prefix.length))[0]||fallback;
   const cats=['dress','top','skirt','outerwear',...(prefs.pantsAllowed?['pants']:[])];
   const candidate=best('category:','dress'),favored=cats.includes(candidate)?candidate:'dress';const ordered=[favored,...cats.filter(c=>c!==favored)];
-  const category=filters.category||ordered[round%ordered.length],rule=prefs.rules[category]||{};
-  const nouns={dress:'maxi dress',top:'blouse top',skirt:'maxi skirt',outerwear:'coat cardigan',pants:'wide leg trousers'};
-  const words=[filters.style||best('style:',prefs.styles[0]||'modest'),round%3===0?(filters.color||best('color:',prefs.colors[0]||'')):(filters.color||''),rule.sleeves==='long'?'long sleeve':'',rule.neckline==='high'?'high neck':'',rule.fit==='loose'?'loose fit':'',nouns[category]||'women clothing'];
+  const category=filters.category||ordered[round%ordered.length],rule=prefs.rules[category==='abaya'?'dress':category]||{};
+  const nouns={dress:'maxi dress',top:'blouse top',skirt:'maxi skirt',outerwear:'coat cardigan',pants:'wide leg trousers',abaya:'abaya'};
+  const style=filters.style||best('style:',normalizeStyles(prefs.styles)[0]||'');
+  const brands=[...new Set([...(prefs.preferredBrands||[]),...feedBrands()].map(b=>b.trim()).filter(Boolean))];
+  // A different brand each round keeps results from collapsing onto the same few big retailers.
+  const brand=brands.length?brands[round%brands.length]:'';
+  const words=[brand,AESTHETIC_SEARCH[style]||(style?style:'modest'),round%3===0?(filters.color||best('color:',prefs.colors[0]||'')):(filters.color||''),rule.sleeves==='long'?'long sleeve':'',rule.neckline==='high'?'high neck':'',rule.fit==='loose'?'loose fit':'',nouns[category]||'women clothing'];
   const budget=filters.maxPrice??prefs.budgetMax;if(budget)words.push(`under $${budget}`);
-  if(prefs.preferredBrands?.length&&round%2===0)words.push(prefs.preferredBrands[Math.floor(round/2)%prefs.preferredBrands.length]);
-  words.push('women US');return {query:words.filter(Boolean).join(' '),page:1+Math.floor(round/ordered.length)};
+  const cycle=filters.category?Math.max(1,brands.length):ordered.length*Math.max(1,brands.length)/gcd(ordered.length,Math.max(1,brands.length));
+  words.push('women');return {query:words.filter(Boolean).join(' '),page:1+Math.floor(round/cycle),brand};
 }
 function coverageSummary(prefs,category){const r=prefs?.rules?.[category||'dress']||{};return [r.sleeves==='long'?'long sleeves':'',r.neckline==='high'?'high neckline':'',r.length==='maxi'?'maxi length':r.length==='midi'?'at least midi length':'',r.fit==='loose'?'loose fit':'',r.transparency==='opaque'?'opaque fabric':'',r.slits==='none'?'no slits':'',r.cutouts==='none'?'no cutouts':''].filter(Boolean).join(', ');}
-export async function createFeed(profile,lib,filters){
-  const all=await products(),items=eligible(all,profile,lib,filters);
-  const session={id:id(),owner:profile.id,filters,productIds:items.map(x=>x.id),round:0,pending:[],processed:0,version:0,lockedAt:0,stopped:config().demo,warnings:[],createdAt:now()};
+// ---------- saved batches: instant first paint ----------
+// New shoppers start from a shared starter pool; returning shoppers start from the unseen pieces we ranked for
+// them last visit. Both are a single record read, then re-checked against current preferences and filters.
+const STARTER_KEY='starter-pool-v1';
+const compact=p=>({...p,description:String(p.description||'').slice(0,600)});
+const hours=(name,fallback)=>Number(process.env[name]||fallback)*3600000;
+const isFresh=(record,ttl)=>record?.builtAt&&Date.now()-Date.parse(record.builtAt)<ttl;
+const usable=p=>p.image&&!p.excluded&&p.productPage!==false&&p.availability!=='out_of_stock'&&p.category!=='unknown';
+const hasFilters=filters=>Object.values(filters||{}).some(v=>v!==undefined&&v!==null&&v!=='');
+// Spread a pool across stores, categories and aesthetics; best-analysed pieces first.
+function spread(list,size,perStore=6){
+  const quality=p=>(p.analysisSource==='vision+description'?2:0)+(p.price>0?1:0)+(p.humanModesty?.count?1:0);
+  const byStore=new Map(),out=[];
+  for(const p of [...list].sort((a,b)=>quality(b)-quality(a)||String(b.discoveredAt||'').localeCompare(String(a.discoveredAt||'')))){
+    const key=String(p.store||'').toLowerCase(),n=byStore.get(key)||0;
+    if(n>=perStore)continue;byStore.set(key,n+1);out.push(p);if(out.length>=size)break;
+  }
+  return out;
+}
+let starterBuild=null;
+// Search FEED_BRANDS with generic modest queries, analyse the finds, and save a diverse pool for new shoppers.
+export function buildStarterPool({force=false}={}){
+  if(starterBuild)return starterBuild;
+  starterBuild=(async()=>{
+    const current=await store.get('cache',STARTER_KEY);
+    if(!force&&isFresh(current,hours('STARTER_TTL_HOURS',12)))return current;
+    // Cross-instance guard: one rebuild at a time.
+    const lock=await store.get('cache',`${STARTER_KEY}:lock`);
+    if(!force&&lock?.until>Date.now())return current;
+    await store.put('cache',`${STARTER_KEY}:lock`,{until:Date.now()+10*60000});
+    try{
+      const brands=feedBrands(),nouns=['maxi dress','long sleeve top','maxi skirt','abaya','cardigan','wide leg trousers'];
+      const day=Math.floor(Date.now()/86400000),count=Math.min(Number(process.env.STARTER_SEARCHES||6),Math.max(brands.length,1)*nouns.length);
+      const queries=Array.from({length:discoveryProvider()?count:0},(_,i)=>{const brand=brands.length?brands[(day*count+i)%brands.length]:'';return `${brand} modest ${nouns[(day+i)%nouns.length]} women`.trim();});
+      const found=(await Promise.allSettled(queries.map(q=>discover(q,1,{lite:true})))).flatMap(r=>r.status==='fulfilled'?r.value:[]);
+      const saved=await Promise.all(found.map(async p=>{const old=await store.get('product',p.id);return store.put('product',p.id,old?{...p,...old,image:old.image||p.image,images:old.images?.length?old.images:p.images}:p);}));
+      // Analyse a limited number of new finds so the pool's coverage labels are real, not guesses.
+      const todo=saved.filter(p=>!p.analyzedAt).slice(0,Number(process.env.STARTER_ANALYZE||24)),done=[];
+      for(let i=0;i<todo.length;i+=analysisConcurrency())done.push(...(await Promise.allSettled(todo.slice(i,i+analysisConcurrency()).map(p=>analyzeStored(p.id)))).flatMap(r=>r.status==='fulfilled'&&r.value?[r.value]:[]));
+      remember([...saved,...done]);
+      const pool=spread((await products({fresh:true})).filter(usable),Number(process.env.STARTER_SIZE||80));
+      const record={products:pool.map(compact),builtAt:now(),queries};
+      await store.put('cache',STARTER_KEY,record);return record;
+    }finally{await store.put('cache',`${STARTER_KEY}:lock`,{until:0}).catch(()=>{});}
+  })().finally(()=>{starterBuild=null;});
+  return starterBuild;
+}
+// After each feed page: rank everything for this shopper and keep the best unseen pieces for next visit.
+const nextSaves=new Map();
+export function saveNextBatch(profile,lib,seenNow=[]){
+  const last=nextSaves.get(profile.id)||0;if(Date.now()-last<Number(process.env.NEXT_BATCH_MIN_MS??30000))return Promise.resolve(null);
+  nextSaves.set(profile.id,Date.now());
+  return (async()=>{
+    const previous=await store.get('feed_next',profile.id,profile.id);
+    const seen=[...new Set([...seenNow,...(previous?.seenIds||[])])].slice(0,600),seenSet=new Set(seen);
+    const ranked=eligible(await products(),profile,lib,{});
+    const unseen=ranked.filter(p=>!seenSet.has(p.id)),size=Number(process.env.NEXT_BATCH_SIZE||60);
+    // Too few unseen pieces: top up with the best ones already shown, so the next visit still opens instantly.
+    const batch=[...unseen,...ranked.filter(p=>seenSet.has(p.id))].slice(0,size);
+    return store.put('feed_next',profile.id,{products:batch.map(({match,...p})=>compact(p)),seenIds:seen,profileVersion:profile.version??0,builtAt:now()},profile.id);
+  })();
+}
+export async function createFeed(profile,lib,filters={}){
+  let items=null,source='catalog';
+  if(!config().demo&&!hasFilters(filters)){
+    const [next,starter]=await Promise.all([store.get('feed_next',profile.id,profile.id),store.get('cache',STARTER_KEY)]);
+    const sameProfile=next&&(next.profileVersion??0)===(profile.version??0);
+    if(sameProfile&&isFresh(next,hours('NEXT_BATCH_TTL_HOURS',72))&&next.products?.length){
+      // Re-check against current likes/dislikes and rules, but keep pieces she hasn't seen ahead of repeats.
+      const seen=new Set(next.seenIds||[]),ranked=eligible(next.products,profile,lib,filters);
+      items=[...ranked.filter(x=>!seen.has(x.id)),...ranked.filter(x=>seen.has(x.id))];source='saved';
+    }
+    if((!items||items.length<12)&&starter?.products?.length){
+      const fromStarter=eligible(starter.products,profile,lib,filters),have=new Set((items||[]).map(x=>x.id));
+      items=[...(items||[]),...fromStarter.filter(x=>!have.has(x.id))];source=source==='saved'?'saved+starter':'starter';
+    }
+    if(process.env.STARTER_POOL!=='false'&&!isFresh(starter,hours('STARTER_TTL_HOURS',12)))background(buildStarterPool());
+    if(items&&items.length<12)items=null;
+  }
+  items??=eligible(await products(),profile,lib,filters);
+  const session={id:id(),owner:profile.id,filters,productIds:items.map(x=>x.id),round:0,pending:[],processed:0,version:0,lockedAt:0,stopped:config().demo,warnings:[],createdAt:now(),source};
   await store.put('feed',session.id,session,profile.id);
   // Start the first search now, so it is usually done by the time the page asks for more.
   if(!config().demo&&process.env.FEED_PREWARM!=='false'&&items.length<24)background(warmRound(profile,lib,0,filters));
@@ -53,6 +139,8 @@ export async function feedView(session,profile,lib,url,{ranked}={}){
   const offset=Math.max(0,Number(url.searchParams.get('offset'))||0),limit=Math.max(1,Math.min(48,Number(url.searchParams.get('limit'))||24));
   const items=[];let cursor=Math.min(offset,session.productIds.length);
   while(cursor<session.productIds.length&&items.length<limit){const item=allowed.get(session.productIds[cursor++]);if(item)items.push(item);}
+  // Remember what they've now seen and rank the next unseen batch for their next visit.
+  if(!config().demo&&!hasFilters(session.filters)&&items.length)background(saveNextBatch(profile,lib,session.productIds.slice(0,cursor)));
   return {feedId:session.id,excludedIds:session.productIds.filter(key=>!allowed.has(key)),items,total:session.productIds.filter(key=>allowed.has(key)).length,cursorEnd:cursor,nextOffset:cursor<session.productIds.length?cursor:null,canDiscover:!session.stopped,busy:session.lockedAt>0&&Date.now()-session.lockedAt<120000,warnings:session.warnings,demo:config().demo};
 }
 // One discovery round: search, save the finds, cache the result. Shared by the feed and the warm-up, and

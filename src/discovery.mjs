@@ -7,14 +7,13 @@ import { hash, host, HttpError, now, safeUrl, text } from './util.mjs';
 import { claudeVision, claudeDiscover, discoveryProvider } from './claude.mjs';
 import { background } from './background.mjs';
 import { prioritySites } from './sites.mjs';
+import { inferAesthetics, normalizeStyles, colorFamilies } from './taxonomy.mjs';
 export { prioritySites };
 
-const COLORS=['black','white','blue','navy','green','pink','red','brown','beige','cream','gray','purple','yellow'];
-const STYLES=['y2k','whimsy','90s chic','clean girl','alternative','earthy'];
 export function inferAttributes(value) {
   const t=String(value||'').toLowerCase().replace(/grey/g,'gray');const has=regex=>regex.test(t);
   const category=has(/\b(dress(?:es)?|abayas?|gowns?|kaftans?|caftans?|jilbabs?|jalabiyas?|thobes?|jubbas?)\b/)?'dress':has(/\b(skirts?)\b/)?'skirt':has(/\b(pants|trousers|jeans|leggings|culottes|palazzos?|joggers|slacks)\b/)?'pants':has(/\b(coats?|jackets?|cardigans?|blazers?|kimonos?|trench(?:es)?|parkas?|vests?)\b/)?'outerwear':has(/\b(tops?|blouses?|shirts?|sweaters?|tunics?|tees?|t-shirts?|jumpers?|pullovers?|hoodies?|sweatshirts?|turtlenecks?)\b/)?'top':'unknown';
-  return {category,colors:COLORS.filter(c=>new RegExp(`\\b${c}\\b`).test(t)),styles:STYLES.filter(c=>t.includes(c)),
+  return {category,colors:colorFamilies([t]),styles:inferAesthetics(t),
     attributes:{
       sleeves:has(/sleeveless|strapless|spaghetti[ -]straps?|\bstrappy\b|\bhalter\b|one[ -]shoulder|\btank\b|\bcami(?:sole)?\b|tube top/)?'sleeveless':has(/long[ -]sleeves?|full[ -]sleeves?|long[ -]sleeved/)?'long':has(/short[ -]sleeves?|short[ -]sleeved|cap[ -]sleeves?|\bt-shirt\b|\btee\b/)?'short':has(/elbow[ -]length|elbow[ -]sleeves?|3\/4|three[ -]quarter/)?'elbow':'unknown',
       neckline:has(/high[ -]neck|turtle[ -]?neck|mock[ -]neck|funnel[ -]neck|polo[ -]neck/)?'high':has(/v[ -]neck|plunging|plunge|deep[ -]v|sweetheart|scoop[ -]neck|off[ -]the[ -]shoulder|off[ -]shoulder|backless|open[ -]back|low[ -]back|square[ -]neck|halter/)?'open':has(/crew[ -]neck|round[ -]neck|boat[ -]neck|bateau|jewel[ -]neck|collared|band[ -]collar|mandarin collar|shirt collar/)?'medium':'unknown',
@@ -97,17 +96,28 @@ const onSite=(p,site)=>{const h=host(p.url),s=String(p.store||'').toLowerCase();
 export function keepPrioritySites(candidates,limit,sites=prioritySites()) {
   const min=Math.max(0,Number(process.env.PRIORITY_SITE_MIN??3)),reserved=new Set();
   for(const site of sites)candidates.filter(p=>onSite(p,site)).slice(0,min).forEach(p=>reserved.add(p.id));
-  const rest=candidates.filter(p=>!reserved.has(p.id)).slice(0,Math.max(0,limit-reserved.size));
-  const keep=new Set([...reserved,...rest.map(p=>p.id)]);
+  // No single store takes more than MAX_PER_STORE slots, so a batch shows a spread of brands.
+  const cap=Math.max(1,Number(process.env.MAX_PER_STORE??4)),perStore=new Map(),overflow=[];
+  for(const p of candidates)if(reserved.has(p.id)){const h=host(p.url);perStore.set(h,(perStore.get(h)||0)+1);}
+  const rest=[];
+  for(const p of candidates){
+    if(reserved.has(p.id))continue;
+    const h=host(p.url),n=perStore.get(h)||0;
+    if(n>=cap){overflow.push(p);continue;}
+    perStore.set(h,n+1);rest.push(p);
+  }
+  // Only fall back to over-represented stores when nothing else is left.
+  const fill=[...rest,...overflow].slice(0,Math.max(0,limit-reserved.size));
+  const keep=new Set([...reserved,...fill.map(p=>p.id)]);
   return candidates.filter(p=>keep.has(p.id)).slice(0,Math.max(limit,reserved.size));
 }
-export async function discover(query, page=1, {hint=''}={}) {
+export async function discover(query, page=1, {hint='',lite=false}={}) {
   const provider=discoveryProvider(),limit=Math.min(20,Number(process.env.MAX_CANDIDATES||12));
   const jobs=[];
   if(provider==='claude'||provider==='both')jobs.push(claudeDiscover(query,page,hint).then(x=>[x]));
   // Retailers we always search directly (PRIORITY_SITES), so they are not crowded out of general results.
-  const sites=prioritySites(),siteSearches=sites.flatMap(site=>[serper('images',`${query} site:${site}`,page),serper('shopping',`${site.split('.')[0]} ${query}`,page)]);
-  if(provider==='serper'||provider==='both')jobs.push(Promise.allSettled([serper('images',query,page),serper('shopping',query,page),serper('search',`${query} buy clothing`,page),...siteSearches]).then(results=>{const good=results.filter(r=>r.status==='fulfilled');if(!good.length)throw results[0].reason;return good.map(r=>r.value);}));
+  const sites=lite?[]:prioritySites(),siteSearches=sites.flatMap(site=>[serper('images',`${query} site:${site}`,page),serper('shopping',`${site.split('.')[0]} ${query}`,page)]);
+  if(provider==='serper'||provider==='both')jobs.push(Promise.allSettled([serper('images',query,page),serper('shopping',query,page),...(lite?[]:[serper('search',`${query} buy clothing`,page)]),...siteSearches]).then(results=>{const good=results.filter(r=>r.status==='fulfilled');if(!good.length)throw results[0].reason;return good.map(r=>r.value);}));
   if(!jobs.length)throw new HttpError(503,'Add ANTHROPIC_API_KEY or SERPER_API_KEY to enable live search');
   const settled=await Promise.allSettled(jobs);
   const payloads=settled.filter(r=>r.status==='fulfilled').flatMap(r=>r.value);
@@ -175,7 +185,8 @@ export function visionProvider() {
 }
 // Garment attributes never change, so vision results are cached permanently by image + title.
 // Re-analysis only refreshes retailer facts (price, stock); it does not spend another vision call.
-export const VISION_VERSION='v2';
+// v3: six-aesthetic prompt (Nov 18). Bumping re-runs vision once per product when it is next analysed.
+export const VISION_VERSION='v3';
 export const visionKey=(image,title)=>`vision-${VISION_VERSION}:${hash(`${image}|${String(title||'').toLowerCase()}`)}`;
 export const analysisTtlMs=()=>Number(process.env.ANALYSIS_TTL_HOURS||168)*3600000;
 export const analysisConcurrency=()=>Math.max(1,Math.min(10,Number(process.env.ANALYSIS_CONCURRENCY||5)));
@@ -219,7 +230,7 @@ function applyVision(p,result,vision) {
     const merged=mergeEvidence(field,{value:p.attributes?.[field]||'unknown',...(p.evidence?.[field]||{confidence:0,reason:''})},fromVision);
     attributes[field]=merged.value;evidence[field]={confidence:merged.confidence,reason:merged.reason};
   }
-  return {...p,excluded:result.itemIsClothing===false,category:categories.includes(result.category)?result.category:p.category,colors:Array.isArray(result.colors)&&result.colors.length?result.colors.filter(x=>typeof x==='string').map(x=>text(x,30).toLowerCase()).slice(0,10):p.colors,styles:Array.isArray(result.styles)?result.styles.filter(x=>typeof x==='string').map(x=>text(x,40).toLowerCase()).slice(0,10):p.styles,attributes,evidence,confidence:Math.max(0,Math.min(1,Number(result.confidence)||0)),analysisSource:'vision+description',visionProvider:vision};
+  return {...p,excluded:result.itemIsClothing===false,category:categories.includes(result.category)?result.category:p.category,colors:Array.isArray(result.colors)&&result.colors.length?result.colors.filter(x=>typeof x==='string').map(x=>text(x,30).toLowerCase()).slice(0,10):p.colors,styles:Array.isArray(result.styles)?normalizeStyles(result.styles.filter(x=>typeof x==='string').map(x=>text(x,40))).slice(0,6):p.styles,attributes,evidence,confidence:Math.max(0,Math.min(1,Number(result.confidence)||0)),analysisSource:'vision+description',visionProvider:vision};
 }
 export async function analyze(product) {
   let p={...product,analysisSource:'search-description',confidence:0.35};

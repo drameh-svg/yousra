@@ -18,11 +18,11 @@ const aestheticTiles = [
 ];
 
 export default function ExplorePage() {
-  // Real listings from each brand's own shop (signed-in shoppers); curated images are the fallback.
+  // Brand cards use real listings from each brand's own shop (signed-in shoppers); curated images are the fallback.
   const previews = useBrandPreviews(brands.map(b => ({ domain: b.domain, name: b.name })), 4);
   const hero = previews[brands[0].domain];
-  const heroItems = hero?.items.some(p => p.image) ? hero.items.filter(p => p.image).slice(0, 4).map(p => ({ id: p.id, title: p.title, image: p.image || "", href: `/products/${p.id}` }))
-    : spotlighted.map(p => ({ id: p.id, title: p.title, image: p.image, href: `/product/${p.id}` }));
+  // Top-corner spotlight keeps the team's curated photos.
+  const heroItems = spotlighted.map(p => ({ id: p.id, title: p.title, image: p.image, href: `/product/${p.id}` }));
   const count = (domain: string, fallback: number) => previews[domain] ? (previews[domain].total ? `${previews[domain].total} pieces on Yousra` : "New pieces coming soon") : `${fallback} pieces`;
   return (
     <main style={{ minHeight: "100vh", background: "var(--bg)" }}>

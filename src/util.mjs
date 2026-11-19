@@ -28,7 +28,8 @@ export function cookie(name, value, maxAge = 3600) {
 }
 export const config = () => ({
   auth: process.env.AUTH_MODE || 'local', storage: process.env.STORAGE || 'local',
-  origin: process.env.APP_ORIGIN || 'http://localhost:3000',
+  // The live site. Set APP_ORIGIN to override (your local .env uses http://localhost:3010).
+  origin: process.env.APP_ORIGIN || 'https://soutrawithyusra.vercel.app',
   demo: !process.env.SERPER_API_KEY && !process.env.ANTHROPIC_API_KEY,
 });
 export function appendCookies(response, values) { for (const c of values) response.headers.append('set-cookie', c); return response; }

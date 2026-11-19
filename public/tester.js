@@ -2,7 +2,7 @@
 const $=s=>document.querySelector(s);
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const S={health:null,user:null,profile:null,page:'feed',photos:[],swipes:[],collections:[],reactions:{},items:[],filters:{},query:'',search:null,busy:false,nextOffset:null,activeCategory:'dress',preferences:null,collection:null,signup:true,searchPreferences:null,generation:0,feed:null};
-const styles=['minimal','classic','casual','romantic','streetwear','elegant','boho','sporty'];
+const styles=['y2k','whimsy','90s chic','clean girl','alternative','earthy'];
 const colors=['black','white','blue','navy','green','pink','red','brown','beige','cream','gray','purple','yellow'];
 const categories=['dress','skirt','top','pants','outerwear'];
 const rules={sleeves:['any','sleeveless','short','elbow','long'],neckline:['any','open','medium','high'],length:['any','mini','knee','midi','maxi'],fit:['any','fitted','regular','loose','wide'],transparency:['any','opaque'],slits:['any','none'],cutouts:['any','none']};

@@ -35,9 +35,13 @@ export async function api<T>(path:string,method='GET',data?:unknown,signal?:Abor
  return result as T;
 }
 export const categories:{id:Category;label:string}[]=[{id:'dress',label:'Dresses'},{id:'skirt',label:'Skirts'},{id:'top',label:'Tops'},{id:'pants',label:'Pants'},{id:'outerwear',label:'Outerwear'}];
-export const allStyles=['minimal','romantic','streetwear','classic','casual','elegant','boho','sporty'];
+export const allStyles=['y2k','whimsy','90s chic','clean girl','alternative','earthy'];
+export const styleLabel:Record<string,string>={
+  'y2k':'Y2K','whimsy':'Whimsy','90s chic':'90s Chic',
+  'clean girl':'Clean Girl','alternative':'Alternative','earthy':'Earthy',
+};
 export const colors=['black','white','blue','navy','green','pink','red','brown','beige','cream','gray','purple','yellow'];
-export const pretty=(s:string)=>s.replaceAll('_',' ').replace(/^./,c=>c.toUpperCase());
+export const pretty=(s:string)=>styleLabel[s]??s.replaceAll('_',' ').replace(/\b\w/g,c=>c.toUpperCase());
 export function money(p:ApiProduct){
  if(p.price===null||!p.currency)return 'Price unknown';
  try{return (p.priceFrom?'From ':'')+new Intl.NumberFormat('en-US',{style:'currency',currency:p.currency}).format(p.price)}catch{return `${p.currency} ${p.price.toFixed(2)}`}

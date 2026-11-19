@@ -41,7 +41,18 @@ export function rankProducts(products, profile, interactions, swipes, filters={}
       const explicitColors=['black','white','blue','navy','green','pink','red','brown','beige','cream','gray','purple','yellow'].filter(c=>titleWords.has(c));
       if(!p.colors?.includes(filters.color)||(explicitColors.length===1&&!explicitColors.includes(filters.color)))return [];
     }
-    if(filters.style&&!p.styles?.includes(filters.style)) return [];
+    if(filters.style){
+      const STYLE_ALIASES={
+        'y2k':['y2k','streetwear','retro'],
+        'whimsy':['whimsy','romantic','boho','feminine'],
+        '90s chic':['90s chic','classic','vintage','casual'],
+        'clean girl':['clean girl','minimal','minimalist','chic'],
+        'alternative':['alternative','streetwear','edgy','gothic'],
+        'earthy':['earthy','boho','casual','natural','bohemian'],
+      };
+      const allowed=new Set(STYLE_ALIASES[filters.style]??[filters.style]);
+      if(!p.styles?.some(s=>allowed.has(s))) return [];
+    }
     if(filters.size&&!p.sizes?.map(x=>x.toLowerCase()).includes(filters.size)) return [];
     if(!filters.size&&prefs.sizes?.length&&p.sizes?.length&&!p.sizes.some(x=>prefs.sizes.includes(String(x).toLowerCase())))return [];
     if(filters.shipping==='confirmed'&&p.shippingUS!=='yes') return [];

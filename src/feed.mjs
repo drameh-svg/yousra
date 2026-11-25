@@ -1,3 +1,5 @@
+import { DEFAULT_FEED_BRANDS, CATEGORY_NOUNS, feedSearch, brandSearch, starterSearch } from './queries.mjs';
+import { hiddenForEveryone } from './shop-filter.mjs';
 import {checkAvailability,displayable} from './stock.mjs';
 import {curatedProducts} from './curated.mjs';
 import {store} from './store.mjs';
@@ -21,28 +23,31 @@ function remember(updated){if(!catalog)return;const byId=new Map(catalog.list.ma
 export const forgetCatalog=()=>{catalog=null;};
 function eligible(all,p,lib,filters){return rankProducts(config().demo?all:all.filter(x=>x.image&&x.productPage!==false),p,feedInteractions(lib),onboarding,filters,'',true,[...all,...curatedProducts]);}
 // Brands every feed search rotates through (FEED_BRANDS, comma-separated), after the shopper's own favourites.
-export const feedBrands=()=>[...new Set(String(process.env.FEED_BRANDS||'').split(',').map(x=>x.trim()).filter(x=>x&&x.length<=40))].slice(0,40);
-const gcd=(a,b)=>b?gcd(b,a%b):a;
+// Unset: the priority 1–2 brands from the brand research list (src/label-brands.mjs).
+export const feedBrands=()=>[...new Set((process.env.FEED_BRANDS?String(process.env.FEED_BRANDS).split(','):DEFAULT_FEED_BRANDS).map(x=>x.trim()).filter(x=>x&&x.length<=40))].slice(0,40);
 export function feedQuery(profile,interactions,all,round,filters={}) {
   const prefs=profile.preferences,weights=preferenceWeights(profile,interactions,all,onboarding);
   const best=(prefix,fallback)=>Object.entries(weights).filter(([k,v])=>k.startsWith(prefix)&&v>0).sort((a,b)=>b[1]-a[1]).map(([k])=>k.slice(prefix.length))[0]||fallback;
   const cats=['dress','top','skirt','outerwear',...(prefs.pantsAllowed?['pants']:[])];
   const candidate=best('category:','dress'),favored=cats.includes(candidate)?candidate:'dress';const ordered=[favored,...cats.filter(c=>c!==favored)];
-  const category=filters.category||ordered[round%ordered.length],rule=prefs.rules[category==='abaya'?'dress':category]||{};
-  const nouns={dress:'maxi dress',top:'blouse top',skirt:'maxi skirt',outerwear:'coat cardigan',pants:'wide leg trousers',abaya:'abaya'};
+  // Shift the category after each pass over the brands, so every brand gets every category (not Uniqlo = dresses forever).
+  const nb=Math.max(1,[...new Set([...(prefs.preferredBrands||[]),...feedBrands()].map(b=>b.trim()).filter(Boolean))].length);
+  const category=filters.category||ordered[(round%nb+Math.floor(round/nb))%ordered.length],rule=prefs.rules[category==='abaya'?'dress':category]||{};
   const style=filters.style||best('style:',normalizeStyles(prefs.styles)[0]||'');
   const brands=[...new Set([...(prefs.preferredBrands||[]),...feedBrands()].map(b=>b.trim()).filter(Boolean))];
   // A different brand each round keeps results from collapsing onto the same few big retailers.
   const brand=filters.brand?'':brands.length?brands[round%brands.length]:'';
-  const words=[brand,AESTHETIC_SEARCH[style]||(style?style:'modest'),round%3===0?(filters.color||best('color:',prefs.colors[0]||'')):(filters.color||''),rule.sleeves==='long'?'long sleeve':'',rule.neckline==='high'?'high neck':'',rule.fit==='loose'?'loose fit':'',nouns[category]||'women clothing'];
-  const budget=filters.maxPrice??prefs.budgetMax;if(budget)words.push(`under $${budget}`);
-  const cycle=filters.category?Math.max(1,brands.length):ordered.length*Math.max(1,brands.length)/gcd(ordered.length,Math.max(1,brands.length));
+  const color=round%3===0?(filters.color||best('color:',prefs.colors[0]||'')):(filters.color||'');
+  const budget=filters.maxPrice??prefs.budgetMax;
+  const cycle=filters.category?nb:nb*ordered.length;
   if(filters.brand){
     // Brand page: search only that brand's site, cycling through clothing types.
-    const site=filters.brand,noun=nouns[filters.category||cats[round%cats.length]];
-    return {query:[filters.brandName||'',style&&AESTHETIC_SEARCH[style]||'',filters.color||'',noun].filter(Boolean).join(' '),page:1+Math.floor(round/(filters.category?1:cats.length)),brand:filters.brandName||site,site};
+    const site=filters.brand,cat=filters.category||cats[round%cats.length],t=Math.floor(round/(filters.category?1:cats.length));
+    return {query:brandSearch({brandName:filters.brandName||'',category:cat,style,color:filters.color||'',turn:t}),page:1+Math.floor(t/(CATEGORY_NOUNS[cat]?.length||1)),brand:filters.brandName||site,site};
   }
-  words.push('women');return {query:words.filter(Boolean).join(' '),page:1+Math.floor(round/cycle),brand};
+  // Each time the same brand and category come round again, use the next garment wording; once all are used, the next page.
+  const turn=Math.floor(round/cycle);
+  return {query:feedSearch({brand,category,rule,style,color,budget,turn}),page:1+Math.floor(turn/(CATEGORY_NOUNS[category]?.length||1)),brand};
 }
 function coverageSummary(prefs,category){const r=prefs?.rules?.[category||'dress']||{};return [r.sleeves==='long'?'long sleeves':'',r.neckline==='high'?'high neckline':'',r.length==='maxi'?'maxi length':r.length==='midi'?'at least midi length':'',r.fit==='loose'?'loose fit':'',r.transparency==='opaque'?'opaque fabric':'',r.slits==='none'?'no slits':'',r.cutouts==='none'?'no cutouts':''].filter(Boolean).join(', ');}
 // ---------- saved batches: instant first paint ----------
@@ -52,7 +57,7 @@ const STARTER_KEY='starter-pool-v1';
 const compact=p=>({...p,description:String(p.description||'').slice(0,600)});
 const hours=(name,fallback)=>Number(process.env[name]||fallback)*3600000;
 const isFresh=(record,ttl)=>record?.builtAt&&Date.now()-Date.parse(record.builtAt)<ttl;
-const usable=p=>p.image&&!p.excluded&&p.productPage!==false&&p.availability!=='out_of_stock'&&p.category!=='unknown';
+const usable=p=>p.image&&!p.excluded&&!hiddenForEveryone(p)&&p.productPage!==false&&p.availability!=='out_of_stock'&&p.category!=='unknown';
 const hasFilters=filters=>Object.values(filters||{}).some(v=>v!==undefined&&v!==null&&v!=='');
 // Spread a pool across stores, categories and aesthetics; best-analysed pieces first.
 function spread(list,size,perStore=6){
@@ -65,7 +70,7 @@ function spread(list,size,perStore=6){
   return out;
 }
 let starterBuild=null;
-// Search FEED_BRANDS with generic modest queries, analyse the finds, and save a diverse pool for new shoppers.
+// Search the feed brands with one garment each (no "modest": it skews results to abaya-only shops), analyse the finds, and save a diverse pool for new shoppers.
 export function buildStarterPool({force=false}={}){
   if(starterBuild)return starterBuild;
   starterBuild=(async()=>{
@@ -76,9 +81,9 @@ export function buildStarterPool({force=false}={}){
     if(!force&&lock?.until>Date.now())return current;
     await store.put('cache',`${STARTER_KEY}:lock`,{until:Date.now()+10*60000});
     try{
-      const brands=feedBrands(),nouns=['maxi dress','long sleeve top','maxi skirt','abaya','cardigan','wide leg trousers'];
+      const brands=feedBrands(),nouns=['dress','top','skirt','abaya','outerwear','pants'];
       const day=Math.floor(Date.now()/86400000),count=Math.min(Number(process.env.STARTER_SEARCHES||6),Math.max(brands.length,1)*nouns.length);
-      const queries=Array.from({length:discoveryProvider()?count:0},(_,i)=>{const brand=brands.length?brands[(day*count+i)%brands.length]:'';return `${brand} modest ${nouns[(day+i)%nouns.length]} women`.trim();});
+      const queries=Array.from({length:discoveryProvider()?count:0},(_,i)=>{const brand=brands.length?brands[(day*count+i)%brands.length]:'';return starterSearch(brand,nouns[(day+i)%nouns.length],day);});
       const found=(await Promise.allSettled(queries.map(q=>discover(q,1,{lite:true})))).flatMap(r=>r.status==='fulfilled'?r.value:[]);
       const saved=await Promise.all(found.map(async p=>{const old=await store.get('product',p.id);return store.put('product',p.id,old?{...p,...old,image:old.image||p.image,images:old.images?.length?old.images:p.images}:p);}));
       // Analyse a limited number of new finds so the pool's coverage labels are real, not guesses.

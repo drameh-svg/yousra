@@ -16,7 +16,7 @@ export default function ContactPage() {
           Let&apos;s talk.
         </h1>
         <p style={{ fontSize: "14px", color: "#637180", lineHeight: 1.65, marginBottom: "32px" }}>
-          Have feedback, a question, or a brand you&apos;d love to see on Yousra? Send us a message.
+          Have feedback, a question, or a brand you&apos;d love to see on Yusra? Send us a message.
         </p>
 
         {sent ? (

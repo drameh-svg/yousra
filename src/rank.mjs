@@ -1,3 +1,4 @@
+import { hiddenForEveryone } from './shop-filter.mjs';
 import {isProductUrl} from './product-url.mjs';
 import {curatedProducts} from './curated.mjs';
 import {contentModel,cosine,diversify,explore} from './recommend.mjs';
@@ -37,7 +38,7 @@ export function rankProducts(products, profile, interactions, swipes, filters={}
   const model=contentModel(context),byId=new Map(context.map(x=>[x.id,x]));
   const signals=interactions.map(i=>({p:byId.get(i.productId),weight:i.disliked?-4:(i.liked?4:0)+(i.saved?3:0)+Math.min(i.clicks||0,3)*0.3})).filter(x=>x.p&&x.weight);
   const ranked=products.flatMap(p=>{
-    if((!p.demo&&p.url&&!isProductUrl(p.url))||p.excluded || p.productPage===false || p.availability==='out_of_stock')return [];
+    if((!p.demo&&p.url&&!isProductUrl(p.url))||p.excluded || hiddenForEveryone(p) || p.productPage===false || p.availability==='out_of_stock')return [];
     if(!p.demo&&p.url&&p.productPage!==true&&/\/(collections|categories|category|search|cat|browse)(\/|$)|\/shop\/gender/i.test(new URL(p.url).pathname))return [];
     if(feed&&hidden.has(p.id)) return [];
     if(prefs.excludedBrands.some(b=>[p.brand,p.store].some(x=>String(x).toLowerCase().includes(b)))) return [];

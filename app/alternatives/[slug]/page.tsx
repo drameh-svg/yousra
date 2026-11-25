@@ -27,7 +27,7 @@ export default async function AlternativesPage({ params }: Props) {
           {`Modest pieces with a similar feel to styles from ${brandName}.`}
         </p>
         <p style={{ fontSize: "11px", color: "#637180", marginBottom: "28px", fontStyle: "italic" }}>
-          These are independent suggestions. Yousra is not affiliated with {brandName}.
+          These are independent suggestions. Yusra is not affiliated with {brandName}.
         </p>
         <DiscoveryGrid query={brandName+" inspired modest clothing"}/>
       </div>

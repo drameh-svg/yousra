@@ -1,0 +1,1 @@
+export interface OutfitCard{id:string;image:string;caption:string;authorName:string;styles:string[];occasion:string|null;likeCount:number;liked:boolean;pieceCount:number;status:string;mine:boolean;detection:string;createdAt:string}

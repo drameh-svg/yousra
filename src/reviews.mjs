@@ -1,4 +1,6 @@
-// MVP validation survey (v2): what shoppers liked, what they want next, what they prioritise, where they
+// Feedback v3 (current): how hard the problem is (1–5), how well Yusra solves it (1–5), a star rating and a
+// written review; rating listings for the coverage model is optional and saved separately (labels.mjs).
+// MVP validation survey (v2, older records): what shoppers liked, what they want next, what they prioritise, where they
 // shop today and one sentence on the MVP. Stored as kind='review' records (owner = signed-in user or null).
 // Older journey-survey (v1) records stay readable in the admin dashboard and CSV.
 import { store } from './store.mjs';
@@ -61,7 +63,9 @@ export const SURVEY = {
   {id:'somewhat',label:'Somewhat disappointed',emoji:'😕'},
   {id:'not',label:'Not really',emoji:'🤷‍♀️'},
  ],
- starters:['Yousra made it easy to…','I loved how…','It would be perfect if…','I would use it every week because…'],
+ problem:[{n:1,label:'Easy'},{n:2,label:'A bit hard'},{n:3,label:'Hard'},{n:4,label:'Very hard'},{n:5,label:'Exhausting'}],
+ solution:[{n:1,label:'Not at all'},{n:2,label:'A little'},{n:3,label:'Somewhat'},{n:4,label:'Well'},{n:5,label:'Perfectly'}],
+ starters:['Yusra made it easy to…','I loved how…','It would be perfect if…','I would use it every week because…'],
 };
 const ids = list => list.map(x => x.id);
 const WISHES = [...ids(SURVEY.inProgress), ...ids(SURVEY.ideas)];
@@ -71,8 +75,16 @@ const int = (v, min, max) => { const n = Number(v); return Number.isInteger(n) &
 
 export function validateReview(input) {
  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new HttpError(400, 'Invalid feedback');
+ if (input.version === 3) {
+  const problem = int(input.problem, 1, 5), solution = int(input.solution, 1, 5), overall = int(input.overall, 1, 5), sentence = text(input.sentence, 500);
+  if (problem === null) throw new HttpError(400, 'Tell us how hard it is to find modest clothes you love');
+  if (solution === null) throw new HttpError(400, 'Tell us how well Yusra solves it');
+  if (overall === null) throw new HttpError(400, 'Choose a star rating');
+  return { version: 3, problem, solution, overall, sentence, quoteOk: input.quoteOk === true, name: text(input.name, 80),
+   contact: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text(input.contact, 254)) ? text(input.contact, 254).toLowerCase() : '' };
+ }
  const overall = int(input.overall, 1, 5);
- if (overall === null) throw new HttpError(400, 'Choose how you felt about Yousra overall');
+ if (overall === null) throw new HttpError(400, 'Choose how you felt about Yusra overall');
  const sentence = text(input.sentence, 300);
  if (sentence.length < 3) throw new HttpError(400, 'Write one sentence about how you liked the MVP');
  return {
@@ -88,9 +100,10 @@ export function validateReview(input) {
   name: text(input.name, 80),
  };
 }
+const review_source = data => data?.version === 3 ? 'feedback-v3' : 'validation-survey-v2';
 export async function submitReview(data, { userAccount, ip, userAgent }) {
  if (!await store.reserve(`review:${hash(ip || 'unknown').slice(0, 20)}`, 12, 1000000)) throw new HttpError(429, 'Thank you! You have shared a lot of feedback today. Please try again tomorrow.');
- const review = { ...validateReview(data), id: id(), userId: userAccount?.id || null, email: userAccount?.email || null, createdAt: now(), userAgent: text(userAgent, 200), source: 'validation-survey-v2' };
+ const review = { ...validateReview(data), id: id(), userId: userAccount?.id || null, email: userAccount?.email || null, createdAt: now(), userAgent: text(userAgent, 200), source: review_source(data) };
  await store.put('review', review.id, review, userAccount?.id || null);
  return json({ ok: true, id: review.id }, 201);
 }
@@ -100,13 +113,16 @@ const tally = (reviews, field, catalog) => {
  return catalog.map(x => ({ ...x, count: counts[x.id] || 0 })).sort((a, b) => b.count - a.count);
 };
 export function summarize(reviews) {
- const v2 = reviews.filter(r => r.version === 2), legacy = reviews.filter(r => r.version !== 2);
+ const v2 = reviews.filter(r => r.version === 2), v3 = reviews.filter(r => r.version === 3), legacy = reviews.filter(r => !r.version || r.version < 2);
  const pmf = v2.filter(r => r.disappointed);
  const priorityScores = Object.fromEntries(ids(SURVEY.priorities).map(x => [x, { points: 0, first: 0 }]));
  for (const r of v2) (r.priorities || []).forEach((p, i) => { priorityScores[p].points += 3 - i; if (i === 0) priorityScores[p].first++; });
  const inProgress = new Set(ids(SURVEY.inProgress));
  return {
-  count: reviews.length, responses: v2.length, legacy: legacy.length,
+  count: reviews.length, responses: v2.length + v3.length, legacy: legacy.length, v3: v3.length,
+  problem: avg(v3.map(r => r.problem)), solution: avg(v3.map(r => r.solution)),
+  problemHigh: v3.length ? Math.round(v3.filter(r => r.problem >= 4).length / v3.length * 100) : null,
+  solutionHigh: v3.length ? Math.round(v3.filter(r => r.solution >= 4).length / v3.length * 100) : null,
   overall: avg(reviews.map(r => r.overall).filter(Boolean)),
   veryDisappointed: pmf.length ? Math.round(pmf.filter(r => r.disappointed === 'very').length / pmf.length * 100) : null, pmfResponses: pmf.length,
   liked: tally(v2, 'liked', SURVEY.working),
@@ -120,8 +136,8 @@ export function summarize(reviews) {
 const cell = v => { const s = v === null || v === undefined ? '' : String(v); return /[",\n\r]/.test(s) || /^[=+\-@]/.test(s) ? `"${(/^[=+\-@]/.test(s) ? "'" : '') + s.replaceAll('"', '""')}"` : s; };
 const join = list => (list || []).join('; ');
 export function reviewsCsv(reviews) {
- const head = ['createdAt', 'version', 'name', 'email', 'contact', 'overall', 'sentence', 'disappointed', 'liked', 'wanted', 'wantedOther', 'priority1', 'priority2', 'priority3', 'sites', 'sitesOther', 'labeled', 'quoteOk', 'legacyLoved', 'legacyImprove', 'legacyWish'];
- const rows = reviews.map(r => [r.createdAt, r.version || 1, r.name, r.email, r.contact, r.overall, r.sentence, r.disappointed, join(r.liked), join(r.wanted), join(r.wantedOther), r.priorities?.[0], r.priorities?.[1], r.priorities?.[2], join(r.sites), join(r.sitesOther), r.labeled, r.quoteOk ? 'yes' : 'no', r.loved, r.improve, r.wish]);
+ const head = ['createdAt', 'version', 'name', 'email', 'contact', 'overall', 'problem', 'solution', 'sentence', 'disappointed', 'liked', 'wanted', 'wantedOther', 'priority1', 'priority2', 'priority3', 'sites', 'sitesOther', 'labeled', 'quoteOk', 'legacyLoved', 'legacyImprove', 'legacyWish'];
+ const rows = reviews.map(r => [r.createdAt, r.version || 1, r.name, r.email, r.contact, r.overall, r.problem, r.solution, r.sentence, r.disappointed, join(r.liked), join(r.wanted), join(r.wantedOther), r.priorities?.[0], r.priorities?.[1], r.priorities?.[2], join(r.sites), join(r.sitesOther), r.labeled, r.quoteOk ? 'yes' : 'no', r.loved, r.improve, r.wish]);
  return [head, ...rows].map(row => row.map(cell).join(',')).join('\r\n') + '\r\n';
 }
 export function isAdmin(u) {

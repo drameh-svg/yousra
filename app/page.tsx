@@ -79,7 +79,7 @@ function HomeFeed() {
       {/* Hero */}
       <section style={{ padding: "40px 20px 20px", textAlign: "center" }}>
         <h1 style={{ fontFamily: "var(--font-serif,'Instrument Serif',Georgia,serif)", fontWeight: 400, fontSize: "clamp(28px,4vw,52px)", color: "#352D27", lineHeight: 1.1, marginBottom: "10px" }}>
-          Find sutra with Yousra.
+          Find sutra with Yusra.
         </h1>
         <p style={{ fontSize: "14px", color: "#637180", maxWidth: "380px", margin: "0 auto 28px", lineHeight: 1.65 }}>
           Modest fashion that feels like you. Scroll your feed or search for a specific piece.

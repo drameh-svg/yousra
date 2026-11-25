@@ -3,7 +3,7 @@
 import { store } from './store.mjs';
 import { HttpError, now, text } from './util.mjs';
 
-export const shareName = value => text(value, 40) || 'A Yousra shopper';
+export const shareName = value => text(value, 40) || 'A Yusra shopper';
 
 export async function syncPublic(ownerId, collection) {
   if (!collection || collection.system || !collection.public) return store.remove('public_collection', collection?.id, ownerId);

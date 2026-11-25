@@ -256,7 +256,7 @@ export default function OnboardingPage() {
             <NavRow
               onNext={()=>{void finish()}}
               nextDisabled={saving||session.loading}
-              nextLabel={saving?"Saving…":"Finish — take me to Yousra"}
+              nextLabel={saving?"Saving…":"Finish — take me to Yusra"}
               onBack={() => setStep(1)}
             />
           </>

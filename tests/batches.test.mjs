@@ -47,7 +47,9 @@ test('feed searches rotate through FEED_BRANDS and use aesthetic wording',()=>{
  const p=profile({styles:['whimsy']});
  const queries=Array.from({length:8},(_,r)=>feedQuery(p,[],[],r));
  assert.deepEqual(queries.slice(0,4).map(q=>q.brand),['Aab','Haute Hijab','Modanisa','Lulus']);
- assert.ok(queries.every(q=>q.query.includes('whimsical floral ruffle')));
+ assert.ok(queries.every(q=>q.query.includes('floral ruffle')));
+ assert.ok(queries.every(q=>!/\bmodest\b/.test(q.query)),'no "modest" in brand searches');
+ assert.ok(queries.every(q=>q.query.split(' ').length<=9),'short queries');
  assert.equal(new Set(queries.map(q=>`${q.query}|${q.page}`)).size,8,'no repeated search');
  assert.equal(feedQuery(profile({preferredBrands:['Inayah']}),[],[],0).brand,'Inayah','her own favourites come first');
  assert.match(feedQuery(p,[],[],0,{category:'abaya'}).query,/abaya/);
@@ -71,7 +73,7 @@ test('new shoppers open on the saved starter pool; returning shoppers open on th
  };
  try{
   const pool=await buildStarterPool({force:true});
-  assert.equal(pool.queries.length,4);assert.ok(pool.queries.every(q=>/^(Aab|Modanisa) modest /.test(q)));
+  assert.equal(pool.queries.length,4);assert.ok(pool.queries.every(q=>/^(Aab|Modanisa) /.test(q)&&!/modest/.test(q)));
   assert.ok(pool.products.length>=20);assert.ok(new Set(pool.products.map(p=>p.store)).size>=5,'spread across stores');
   const callsAfterBuild=calls;
   const a=await client();

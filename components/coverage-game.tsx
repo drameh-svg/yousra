@@ -1,5 +1,5 @@
 'use client';
-// "Rate the coverage": shoppers rate 5–10 real listings Yousra found. Each rating is saved as a modesty label
+// "Rate the coverage": shoppers rate 5–10 real listings Yusra found. Each rating is saved as a modesty label
 // that we use to measure and improve coverage detection (see docs/MODESTY-LABELS.md).
 import {useEffect,useState} from 'react';
 import Image from 'next/image';

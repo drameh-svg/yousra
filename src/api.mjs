@@ -1,3 +1,4 @@
+import { searchBarQuery } from './queries.mjs';
 import {checkAvailability,strictStock} from './stock.mjs';
 import {discoveryProvider} from './claude.mjs';
 import {isProductUrl} from './product-url.mjs';
@@ -15,6 +16,8 @@ import { syncPublic,unpublish,listPublic,getPublic,shareName } from './collectio
 import { deleteAccount } from './account.mjs';
 import { quizItems,scoreQuiz,saveQuiz,validateAnswers,knownLevel,YES_REASONS,NO_REASONS } from './modesty-quiz.mjs';
 import { labelingItems,submitLabels,labelsJsonl,labelsCsv,labelAgreement } from './labels.mjs';
+import { createOutfit,listOutfits,getOutfit,outfitImage,likeOutfit,reportOutfit,deleteOutfit,moderateOutfit,moderationQueue,uploadBody,OCCASIONS } from './outfits.mjs';
+import { labelQueueItems,submitAttributeLabel,labelQueueStats,attributeLabelsJsonl,attributeLabelsCsv,QUEUE_KIND } from './label-queue.mjs';
 import { defaultPreferences,validatePreferences,filtersFrom } from './preferences.mjs';
 import { onboarding,sampleProducts } from './seed.mjs';
 import { discover,analysisTtlMs,analysisConcurrency,queryFilters,refreshProductPrice,visionProvider } from './discovery.mjs';
@@ -35,7 +38,7 @@ function shopUrl(p) {
 function publicProduct(p) {
   const shop=shopUrl(p);
   // Cards show the six current aesthetics, whatever names the product was tagged with when it was analysed.
-  return {...p,styles:productAesthetics(p),price:Number.isFinite(p.price)&&p.price>0&&p.currency?p.price:null,originalImage:p.image,image:p.image&&!p.demo?`/api/products/${p.id}/image`:p.image,images:p.demo?p.images:(p.images||[]).map((_,i)=>`/api/products/${p.id}/image?index=${i}`),affiliate:shop.affiliate,shopPath:`/api/products/${p.id}/outbound`,sourceUrl:p.url,shopAvailable:isProductUrl(p.url)&&p.productPage!==false};
+  return {...p,styles:productAesthetics(p),price:Number.isFinite(p.price)&&p.price>0&&p.currency?p.price:null,originalImage:p.image,image:p.image&&!p.demo?`/api/products/${p.id}/image`:p.image,fullImage:p.image&&!p.demo?`/api/products/${p.id}/image?full=1`:p.image,images:p.demo?p.images:(p.images||[]).map((_,i)=>`/api/products/${p.id}/image?index=${i}`),affiliate:shop.affiliate,shopPath:`/api/products/${p.id}/outbound`,sourceUrl:p.url,shopAvailable:isProductUrl(p.url)&&p.productPage!==false};
 }
 function pages(items,url) {const offset=Math.max(0,Number(url.searchParams.get('offset'))||0),limit=Math.max(1,Math.min(48,Number(url.searchParams.get('limit'))||24));return {items:items.slice(offset,offset+limit).map(publicProduct),total:items.length,nextOffset:offset+limit<items.length?offset+limit:null};}
 async function product(key) {return await store.get('product',key)||curatedProducts.find(x=>x.id===key)||(config().demo?sampleProducts.find(x=>x.id===key):null);}
@@ -136,7 +139,29 @@ export async function handle(request, context={}) {
       const account=await user(request).catch(()=>null);
       return await submitReview(await body(request),{userAccount:account,ip:clientIp(request,context),userAgent:request.headers.get('user-agent')});
     }
+    // Community outfits: approved posts are public; signed-in viewers also see their own pending posts.
+    const outfit=path.match(/^\/api\/outfits\/([\w-]+)(?:\/(image|like|report))?$/);
+    if(path==='/api/outfits'&&method==='GET'){
+      const viewer=await user(request).catch(()=>null);
+      return json({items:await listOutfits(viewer,{style:url.searchParams.get('style')||'',occasion:url.searchParams.get('occasion')||'',mine:url.searchParams.get('mine')==='1'}),occasions:OCCASIONS});
+    }
+    if(outfit&&method==='GET'&&outfit[2]==='image'){const viewer=await user(request).catch(()=>null);return await outfitImage(outfit[1],viewer,isAdmin(viewer));}
+    if(outfit&&method==='GET'&&!outfit[2]){
+      const viewer=await user(request).catch(()=>null),prof=viewer?await store.get('profile',viewer.id,viewer.id):null;
+      const look=await getOutfit(outfit[1],viewer,{admin:isAdmin(viewer),catalog:await catalog(),prefs:prof?.onboarded?prof.preferences:null});
+      return json({...look,pieces:look.pieces.map(p=>({...p,products:p.products.map(publicProduct)}))});
+    }
     const u=await user(request);
+    if(path==='/api/outfits'&&method==='POST')return json(await createOutfit(await uploadBody(request),u,{autoApprove:isAdmin(u)}),201);
+    if(outfit&&outfit[2]==='like'&&method==='POST')return json(await likeOutfit(outfit[1],u,(await body(request)).like!==false));
+    if(outfit&&outfit[2]==='report'&&method==='POST')return json(await reportOutfit(outfit[1],u,(await body(request)).reason));
+    if(outfit&&!outfit[2]&&method==='DELETE')return json(await deleteOutfit(outfit[1],u,isAdmin(u)));
+    if(path.startsWith('/api/admin/outfits')){
+      if(!isAdmin(u))throw new HttpError(403,'Admin access required. Add your account email to ADMIN_EMAILS.');
+      if(path==='/api/admin/outfits'&&method==='GET')return json({items:await moderationQueue()});
+      const m=path.match(/^\/api\/admin\/outfits\/([\w-]+)$/);
+      if(m&&method==='POST')return json(await moderateOutfit(m[1],(await body(request)).decision));
+    }
     if(path==='/api/admin/status'&&method==='GET')return json({admin:isAdmin(u)});
     if(path==='/api/admin/reviews'&&method==='GET'){
       if(!isAdmin(u))throw new HttpError(403,'Admin access required. Add your account email to ADMIN_EMAILS.');
@@ -176,8 +201,21 @@ export async function handle(request, context={}) {
     }
     if(path==='/api/labeling/items'&&method==='GET')return json(await labelingItems(u.id,url.searchParams.get('count')));
     if(path==='/api/labeling'&&method==='POST')return json(await submitLabels(await body(request),u),201);
+    // Team labeling queue (/admin/label): attribute-by-attribute checks of the AI, admins only.
+    if(path.startsWith('/api/admin/label-queue')){
+      if(!isAdmin(u))throw new HttpError(403,'Admin access required. Add your account email to ADMIN_EMAILS.');
+      if(path==='/api/admin/label-queue/items'&&method==='GET')return json(await labelQueueItems(u.id,url.searchParams.get('count')));
+      if(path==='/api/admin/label-queue/labels'&&method==='POST')return json(await submitAttributeLabel(await body(request),u),201);
+      if(path==='/api/admin/label-queue/stats'&&method==='GET'){
+        const labels=await store.list('attribute_label',undefined,20000),queue=(await store.list(QUEUE_KIND,undefined,20000)).length;
+        const format=url.searchParams.get('format'),stamp=now().slice(0,10);
+        if(format==='jsonl')return new Response(attributeLabelsJsonl(labels),{headers:{'content-type':'application/x-ndjson; charset=utf-8','content-disposition':`attachment; filename="yousra-attribute-labels-${stamp}.jsonl"`,'cache-control':'no-store'}});
+        if(format==='csv')return new Response(attributeLabelsCsv(labels),{headers:{'content-type':'text/csv; charset=utf-8','content-disposition':`attachment; filename="yousra-attribute-labels-${stamp}.csv"`,'cache-control':'no-store'}});
+        return json(labelQueueStats(labels,queue));
+      }
+    }
     const photo=path.match(/^\/api\/products\/([\w-]+)\/image$/);
-    if(photo&&method==='GET'){const item=await product(photo[1]);if(!item)throw new HttpError(404,'Product not found');return productImage(item,Math.max(0,Math.min(5,Number(url.searchParams.get('index'))||0)));}
+    if(photo&&method==='GET'){const item=await product(photo[1])||await store.get(QUEUE_KIND,photo[1]);if(!item)throw new HttpError(404,'Product not found');return productImage(item,Math.max(0,Math.min(5,Number(url.searchParams.get('index'))||0)),{full:url.searchParams.get('full')==='1'});}
     const [p,lib]=await Promise.all([profile(u.id),library(u.id)]);
     const libraryAction=path.startsWith('/api/collections')||path==='/api/reactions'||/^\/api\/products\/[\w-]+\/reaction$/.test(path);
     if(path==='/api/account'&&method==='DELETE')return await deleteAccount(request,u,await body(request));
@@ -214,7 +252,7 @@ export async function handle(request, context={}) {
       if(!query)throw new HttpError(400,'Enter something to search for');
       const preferences=data.preferences?validatePreferences(data.preferences):p.preferences;
       const filters=queryFilters(query,data.filters||{});
-      const key=id(),job={id:key,owner:u.id,query,discoveryQuery:`${query} ${filters.color||''} ${filters.category||'women clothing'} ${preferences.rules?.[filters.category]?.sleeves==='long'?'long sleeve':''} ${preferences.styles.slice(0,2).join(' ')} US`.trim(),filters,preferences,phase:'discovery',status:'pending',productIds:[],processed:0,warnings:[],createdAt:now(),demo:config().demo,version:0};
+      const key=id(),job={id:key,owner:u.id,query,discoveryQuery:searchBarQuery(query,filters,preferences),filters,preferences,phase:'discovery',status:'pending',productIds:[],processed:0,warnings:[],createdAt:now(),demo:config().demo,version:0};
       if(config().demo) {job.productIds=sampleProducts.map(x=>x.id);job.status='complete';job.phase='analysis';job.warnings=['Sample catalog only. Add ANTHROPIC_API_KEY (or SERPER_API_KEY) for live web discovery.'];}
       // Return cached catalog immediately; advancing the job performs network work.
       else {job.productIds=(await catalog()).map(x=>x.id);}

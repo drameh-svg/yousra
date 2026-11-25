@@ -201,7 +201,7 @@ export function ProductView({ product, similar:initialSimilar }: Props) {
                 style={{ color: "#352D27", fontWeight: 600, textDecoration: "none" }}>
                 {product.store}
               </a>
-              {" "}· Yousra does not sell this product.
+              {" "}· Yusra does not sell this product.
             </p>
 
             {/* Big CTA */}

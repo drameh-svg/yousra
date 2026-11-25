@@ -34,7 +34,7 @@ function supaSession(data, payload = {}) {
 async function saveNewsletter(account, data) {
   await store.put('newsletter',account.id,{
     email:account.email,optedIn:data.newsletterOptIn===true,
-    recordedAt:now(),source:'signup',consentText:'Email me occasional Yousra news and updates (optional).'
+    recordedAt:now(),source:'signup',consentText:'Email me occasional Yusra news and updates (optional).'
   },account.id);
 }
 export async function signIn(data, signup) {

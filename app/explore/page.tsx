@@ -1,236 +1,45 @@
-"use client";
+'use client';
+// Explore: outfit inspiration posted by the Yusra community. Each outfit links to similar pieces so shoppers
+// can recreate it.
+import {useEffect,useState,type CSSProperties} from 'react';
+import Image from 'next/image';
+import Link from 'next/link';
+import {Heart,Plus,Shirt} from 'lucide-react';
+import {api} from '@/lib/api';
+import {useSession} from '@/components/session-provider';
+import {ShareOutfit,STYLES,OCCASIONS} from '@/components/share-outfit';
+import type {OutfitCard} from '@/lib/outfits';
 
-import { useState } from "react";
-import Link from "next/link";
-import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
-import { ProductCard } from "@/components/product-card";
-import { products } from "@/lib/products";
-import { spotlighted, categories, brands, trending } from "@/lib/explore-data";
-import { useBrandPreviews } from "@/lib/use-brand-previews";
+const serif:CSSProperties={fontFamily:"var(--font-serif,'Instrument Serif',Georgia,serif)",fontWeight:400};
+const chip=(on:boolean)=>`whitespace-nowrap rounded-full border px-3.5 py-1.5 text-xs transition-colors ${on?'border-[#352D27] bg-[#352D27] text-white':'border-stone-200 bg-white text-stone-600 hover:border-stone-400'}`;
 
-const aestheticTiles = [
-  { label: "Y2K", slug: "y2k", image: products.find((p) => p.id === "13")!.image },
-  { label: "Whimsy", slug: "whimsy", image: products.find((p) => p.id === "7")!.image },
-  { label: "90s Chic", slug: "90s-chic", image: products.find((p) => p.id === "20")!.image },
-  { label: "Clean Girl", slug: "clean-girl", image: products.find((p) => p.id === "1")!.image },
-  { label: "Alternative", slug: "alternative", image: products.find((p) => p.id === "17")!.image },
-  { label: "Earthy", slug: "earthy", image: products.find((p) => p.id === "19")!.image },
-];
+export default function ExplorePage(){
+ const {user}=useSession();
+ const [items,setItems]=useState<OutfitCard[]|null>(null),[style,setStyle]=useState(''),[occasion,setOccasion]=useState(''),[sharing,setSharing]=useState(false),[notice,setNotice]=useState(''),[tick,setTick]=useState(0);
+ useEffect(()=>{let live=true;const q=new URLSearchParams();if(style)q.set('style',style);if(occasion)q.set('occasion',occasion);
+  api<{items:OutfitCard[]}>(`/outfits?${q}`).then(d=>{if(live)setItems(d.items)}).catch(()=>{if(live)setItems([])});return()=>{live=false};},[style,occasion,tick,user]);
+ const like=async(o:OutfitCard)=>{if(!user){setNotice('Sign in to like outfits');return;}
+  setItems(c=>c?.map(x=>x.id===o.id?{...x,liked:!o.liked,likeCount:x.likeCount+(o.liked?-1:1)}:x)??c);
+  try{await api(`/outfits/${o.id}/like`,'POST',{like:!o.liked});}catch{setTick(t=>t+1);}};
+ return <main style={{minHeight:'100vh',background:'var(--bg)'}}>
+  <section className="mx-auto max-w-6xl px-5 pb-16 pt-8">
+   <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
+    <div><p className="text-[10px] font-bold uppercase tracking-[0.1em] text-stone-400">Community</p><h1 style={serif} className="text-4xl text-[#352D27] sm:text-5xl">Outfit inspo</h1><p className="mt-1 max-w-md text-sm text-stone-500">Real outfits from Yusra girls. Tap one to shop similar pieces and recreate the look.</p></div>
+    <button onClick={()=>user?setSharing(true):setNotice('Sign in to share your outfit')} className="inline-flex items-center gap-1.5 rounded-full bg-[#352D27] px-5 py-2.5 text-sm font-medium text-white hover:bg-stone-700"><Plus size={15}/>Share your outfit</button>
+   </div>
+   {notice?<p role="status" className="mb-4 text-sm text-stone-600">{notice} {!user?<Link href="/profile" className="underline">Sign in</Link>:null}</p>:null}
+   <div className="mb-2 flex gap-1.5 overflow-x-auto pb-1"><button className={chip(!style)} onClick={()=>setStyle('')}>All styles</button>{STYLES.map(s=><button key={s.id} className={chip(style===s.id)} onClick={()=>setStyle(c=>c===s.id?'':s.id)}>{s.label}</button>)}</div>
+   <div className="mb-6 flex gap-1.5 overflow-x-auto pb-1"><button className={chip(!occasion)} onClick={()=>setOccasion('')}>Any occasion</button>{OCCASIONS.map(o=><button key={o.id} className={chip(occasion===o.id)} onClick={()=>setOccasion(c=>c===o.id?'':o.id)}>{o.label}</button>)}</div>
 
-export default function ExplorePage() {
-  // Brand cards use real listings from each brand's own shop (signed-in shoppers); curated images are the fallback.
-  const previews = useBrandPreviews(brands.map(b => ({ domain: b.domain, name: b.name })), 4);
-  const hero = previews[brands[0].domain];
-  // Top-corner spotlight keeps the team's curated photos.
-  const heroItems = spotlighted.map(p => ({ id: p.id, title: p.title, image: p.image, href: `/product/${p.id}` }));
-  const count = (domain: string, fallback: number) => previews[domain] ? (previews[domain].total ? `${previews[domain].total} pieces on Yousra` : "New pieces coming soon") : `${fallback} pieces`;
-  return (
-    <main style={{ minHeight: "100vh", background: "var(--bg)" }}>
-
-      {/* ── Hero: brand spotlight ── */}
-      <section style={{ maxWidth: "1200px", margin: "0 auto", padding: "32px 20px 0" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", alignItems: "stretch" }}
-             className="hero-grid">
-
-          {/* Left — featured brand */}
-          <div style={{
-            background: "#352D27", borderRadius: "16px", padding: "36px",
-            display: "flex", flexDirection: "column", justifyContent: "space-between", minHeight: "340px",
-          }}>
-            <div>
-              <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#DCFCFF" }}>
-                Brand spotlight
-              </span>
-              <h2 style={{
-                fontFamily: "var(--font-serif,'Instrument Serif',Georgia,serif)",
-                fontWeight: 400, fontSize: "clamp(26px,3vw,38px)", color: "#F5F5F5",
-                lineHeight: 1.15, margin: "12px 0 10px",
-              }}>
-                {brands[0].name}
-              </h2>
-              <p style={{ fontSize: "14px", color: "rgba(245,245,245,0.65)", lineHeight: 1.65, maxWidth: "340px", marginBottom: "20px" }}>
-                {brands[0].tagline} {hero ? (hero.total ? `${hero.total} pieces available through Yousra.` : "Fresh pieces are on their way.") : `${brands[0].pieceCount} pieces available through Yousra.`}
-              </p>
-            </div>
-            <Link href={`/brand/${brands[0].slug}`}
-              style={{
-                display: "inline-flex", alignItems: "center", gap: "8px",
-                background: "#DCFCFF", color: "#352D27",
-                fontSize: "13px", fontWeight: 700, padding: "10px 20px",
-                borderRadius: "999px", textDecoration: "none", alignSelf: "flex-start",
-              }}>
-              View all pieces <ArrowRight size={13} />
-            </Link>
-          </div>
-
-          {/* Right — 2x2 product thumbnails */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-            {heroItems.map((p) => (
-              <Link key={p.id} href={p.href}
-                style={{ display: "block", borderRadius: "12px", overflow: "hidden", textDecoration: "none" }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={p.image} alt={p.title}
-                  style={{ width: "100%", aspectRatio: "3/4", objectFit: "cover", display: "block" }} />
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 20px 80px" }}>
-
-        {/* ── Explore by style ── */}
-        <section style={{ marginTop: "52px", marginBottom: "52px" }}>
-          <SectionHeader title="Explore by style" subtitle="Browse pieces by the aesthetic that feels like you." />
-          <div style={{ display: "flex", gap: "10px", overflowX: "auto", paddingBottom: "4px" }}
-               className="hide-scroll">
-            {aestheticTiles.map((tile) => (
-              <Link key={tile.slug} href={`/aesthetic/${tile.slug}`}
-                style={{ display: "block", textDecoration: "none", flexShrink: 0, width: "160px" }}>
-                <div style={{ borderRadius: "12px", overflow: "hidden", position: "relative", marginBottom: "8px" }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={tile.image} alt={tile.label}
-                    style={{ width: "100%", aspectRatio: "2/3", objectFit: "cover", display: "block" }} />
-                  <div style={{
-                    position: "absolute", inset: 0,
-                    background: "linear-gradient(to top, rgba(53,45,39,0.7) 0%, transparent 50%)",
-                    display: "flex", alignItems: "flex-end", padding: "14px",
-                  }}>
-                    <span style={{
-                      fontFamily: "var(--font-serif,'Instrument Serif',Georgia,serif)",
-                      fontSize: "17px", color: "#F5F5F5", fontWeight: 400,
-                    }}>{tile.label}</span>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </section>
-
-        {/* ── Trending pieces ── */}
-        <TrendingSection />
-
-        {/* ── Browse by category ── */}
-        <section style={{ marginBottom: "52px" }}>
-          <SectionHeader title="Browse by category" subtitle="Start with the kind of clothing you need." />
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(6,1fr)", gap: "10px" }}
-               className="cat-grid">
-            {categories.map((cat) => (
-              <Link key={cat.slug} href={`/category/${cat.slug}`}
-                style={{ display: "block", textDecoration: "none" }}>
-                <div style={{ borderRadius: "12px", overflow: "hidden", marginBottom: "8px" }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={cat.image} alt={cat.label}
-                    style={{ width: "100%", aspectRatio: "3/4", objectFit: "cover", display: "block" }} />
-                </div>
-                <p style={{ fontSize: "13px", fontWeight: 600, color: "#352D27", marginBottom: "2px" }}>{cat.label}</p>
-                <p style={{ fontSize: "11px", color: "#637180" }}>{cat.count} pieces</p>
-              </Link>
-            ))}
-          </div>
-        </section>
-
-        {/* ── Spotlighted brands this week ── */}
-        <section style={{ marginBottom: "52px" }}>
-          <SectionHeader title="Spotlighted brands this week" subtitle="Get to know the brands behind the pieces." />
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "10px" }}
-               className="brands-grid">
-            {brands.map((brand) => (
-              <Link key={brand.slug} href={`/brand/${brand.slug}`}
-                style={{
-                  display: "flex", gap: "14px", textDecoration: "none", alignItems: "center",
-                  background: "#fff", borderRadius: "12px", padding: "14px",
-                  border: "1px solid rgba(53,45,39,0.08)",
-                }}>
-                <div style={{ width: "60px", height: "75px", borderRadius: "8px", overflow: "hidden", flexShrink: 0 }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={previews[brand.domain]?.items[0]?.image || brand.image} alt={brand.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                </div>
-                <div>
-                  <p style={{ fontSize: "13px", fontWeight: 700, color: "#352D27", marginBottom: "3px" }}>{brand.name}</p>
-                  <p style={{ fontSize: "11px", color: "#637180", lineHeight: 1.5, marginBottom: "6px" }}>{brand.tagline}</p>
-                  <span style={{ fontSize: "11px", color: "#637180" }}>{count(brand.domain, brand.pieceCount)}</span>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </section>
-
-      </div>
-
-      <style>{`
-        .hide-scroll { scrollbar-width: none; }
-        .hide-scroll::-webkit-scrollbar { display: none; }
-        @media (max-width: 860px) {
-          .hero-grid    { grid-template-columns: 1fr !important; }
-          .cat-grid     { grid-template-columns: repeat(3,1fr) !important; }
-          .brands-grid  { grid-template-columns: repeat(2,1fr) !important; }
-        }
-        @media (max-width: 540px) {
-          .cat-grid     { grid-template-columns: repeat(2,1fr) !important; }
-          .brands-grid  { grid-template-columns: 1fr !important; }
-        }
-      `}</style>
-    </main>
-  );
-}
-
-function TrendingSection() {
-  const [offset, setOffset] = useState(0);
-  const W = 190, G = 10;
-  const max = Math.max(0, trending.length - 5);
-  return (
-    <section style={{ marginBottom: "52px" }}>
-      <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: "18px" }}>
-        <SectionHeader title="Trending pieces" subtitle="See what shoppers are exploring." inline />
-        <div style={{ display: "flex", gap: "8px", flexShrink: 0 }}>
-          {[-1, 1].map((dir) => {
-            const disabled = dir === -1 ? offset === 0 : offset >= max;
-            return (
-              <button key={dir} onClick={() => setOffset((o) => Math.max(0, Math.min(max, o + dir)))}
-                disabled={disabled}
-                style={{
-                  width: "30px", height: "30px", borderRadius: "50%",
-                  border: "1px solid rgba(53,45,39,0.2)",
-                  background: disabled ? "transparent" : "#fff",
-                  color: disabled ? "rgba(53,45,39,0.2)" : "#352D27",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  cursor: disabled ? "default" : "pointer",
-                }}>
-                {dir === -1 ? <ChevronLeft size={15} /> : <ChevronRight size={15} />}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-      <div style={{ overflow: "hidden" }}>
-        <div style={{
-          display: "flex", gap: `${G}px`,
-          transform: `translateX(calc(-${offset} * (${W}px + ${G}px)))`,
-          transition: "transform 0.35s ease",
-        }}>
-          {trending.map((p) => (
-            <div key={p.id} style={{ width: `${W}px`, flexShrink: 0 }}>
-              <ProductCard product={p} />
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function SectionHeader({ title, subtitle, inline }: { title: string; subtitle: string; inline?: boolean }) {
-  if (inline) return (
-    <div>
-      <h2 style={{ fontFamily: "var(--font-serif,'Instrument Serif',Georgia,serif)", fontWeight: 400, fontSize: "20px", color: "#352D27", marginBottom: "2px" }}>{title}</h2>
-      <p style={{ fontSize: "12px", color: "#637180" }}>{subtitle}</p>
-    </div>
-  );
-  return (
-    <div style={{ marginBottom: "18px" }}>
-      <h2 style={{ fontFamily: "var(--font-serif,'Instrument Serif',Georgia,serif)", fontWeight: 400, fontSize: "20px", color: "#352D27", marginBottom: "2px" }}>{title}</h2>
-      <p style={{ fontSize: "12px", color: "#637180" }}>{subtitle}</p>
-    </div>
-  );
+   {items===null?<p className="py-16 text-center text-sm text-stone-400">Loading outfits…</p>
+   :!items.length?<div className="rounded-3xl border border-stone-100 bg-white px-6 py-14 text-center shadow-sm"><Shirt className="mx-auto mb-3 text-stone-300" size={32}/><h2 style={serif} className="text-2xl text-[#352D27]">{style||occasion?'No outfits here yet':'Be the first to share an outfit'}</h2><p className="mx-auto mt-1 max-w-sm text-sm text-stone-500">Post a look you love. We&apos;ll find similar pieces so other girls can recreate it.</p></div>
+   :<div className="masonry">{items.map(o=><div key={o.id} className="group relative overflow-hidden rounded-2xl bg-white shadow-sm">
+     <Link href={`/explore/outfit/${o.id}`} className="block"><div className="relative aspect-[3/4] w-full bg-stone-100"><Image src={o.image} alt={o.caption||`Outfit by ${o.authorName}`} fill unoptimized sizes="(max-width:600px) 50vw, 33vw" className="object-cover transition-transform duration-500 group-hover:scale-[1.02]"/>
+      {o.status!=='approved'?<span className="absolute left-2 top-2 rounded-full bg-white/90 px-2 py-0.5 text-[10px] text-stone-700">{o.status==='rejected'?'Not approved':'Waiting for review'}</span>:null}</div></Link>
+     <div className="flex items-center justify-between gap-2 px-3 py-2.5"><div className="min-w-0"><p className="truncate text-xs font-medium text-stone-800">{o.authorName}</p><p className="truncate text-[11px] text-stone-400">{o.pieceCount?`${o.pieceCount} pieces to shop`:o.detection==='pending'?'Finding pieces…':(o.caption||'Outfit')}</p></div>
+      <button aria-label={o.liked?'Unlike':'Like'} onClick={()=>void like(o)} disabled={o.status!=='approved'} className="flex shrink-0 items-center gap-1 text-xs text-stone-500 disabled:opacity-30"><Heart size={15} className={o.liked?'fill-[#C0504D] text-[#C0504D]':''}/>{o.likeCount||''}</button></div>
+    </div>)}</div>}
+  </section>
+  {sharing?<ShareOutfit onClose={()=>setSharing(false)} onShared={approved=>{setSharing(false);setNotice(approved?'Your outfit is live!':'Thanks! Your outfit will appear once the team has had a look.');setTick(t=>t+1);}}/>:null}
+ </main>;
 }

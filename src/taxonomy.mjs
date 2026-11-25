@@ -69,5 +69,6 @@ const ABAYA = /\b(abaya|abayas|jilbab|jilbaab|kaftan|caftan|jalabiya|jalabiyah|k
 export const isAbaya = p => ABAYA.test(`${p?.title||''} ${p?.description||''}`) && ['dress','outerwear','unknown',undefined,null,''].includes(p?.category);
 
 // Search wording for each aesthetic: Google understands "whimsical floral" better than "whimsy".
-export const AESTHETIC_SEARCH = {'y2k':'y2k','whimsy':'whimsical floral ruffle','90s chic':'90s minimalist','clean girl':'clean girl neutral minimalist',
-  'alternative':'grunge alternative dark','earthy':'earthy linen'};
+// Words stores actually use in product titles (TikTok names like "clean girl" rarely appear in listings).
+export const AESTHETIC_SEARCH = {'y2k':'y2k','whimsy':'floral ruffle','90s chic':'minimalist tailored','clean girl':'neutral basic',
+  'alternative':'black grunge','earthy':'linen'};

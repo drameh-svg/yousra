@@ -8,8 +8,8 @@ import {AuthScreen} from '@/components/account-gate';
 import {fieldClass,secondaryClass} from '@/components/preference-form';
 
 interface Counted{id:string;label:string;emoji?:string;count:number;inProgress?:boolean}
-interface Review{id:string;createdAt:string;version?:number;name:string;email:string|null;contact:string;overall:number;sentence?:string;disappointed?:string|null;liked?:string[];wanted?:string[];wantedOther?:string[];priorities?:string[];sites?:string[];sitesOther?:string[];labeled?:number;quoteOk:boolean;loved?:string;improve?:string;wish?:string}
-interface Summary{count:number;responses:number;legacy:number;overall:number|null;veryDisappointed:number|null;pmfResponses:number;liked:Counted[];wanted:Counted[];priorities:{id:string;label:string;emoji?:string;points:number;first:number}[];sites:Counted[];otherWishes:string[];otherSites:string[];labeled:number}
+interface Review{id:string;createdAt:string;version?:number;problem?:number;solution?:number;name:string;email:string|null;contact:string;overall:number;sentence?:string;disappointed?:string|null;liked?:string[];wanted?:string[];wantedOther?:string[];priorities?:string[];sites?:string[];sitesOther?:string[];labeled?:number;quoteOk:boolean;loved?:string;improve?:string;wish?:string}
+interface Summary{v3:number;problem:number|null;solution:number|null;problemHigh:number|null;solutionHigh:number|null;count:number;responses:number;legacy:number;overall:number|null;veryDisappointed:number|null;pmfResponses:number;liked:Counted[];wanted:Counted[];priorities:{id:string;label:string;emoji?:string;points:number;first:number}[];sites:Counted[];otherWishes:string[];otherSites:string[];labeled:number}
 interface LabelSummary{summary:{products:number;labels:number;agreement:number|null;confusion:Record<string,Record<string,number>>}}
 const serif:CSSProperties={fontFamily:"var(--font-serif,'Instrument Serif',Georgia,serif)",fontWeight:400};
 const words=['','Rough','Meh','Okay','Lovely','Pure sutra'];
@@ -34,7 +34,7 @@ export default function ReviewsAdmin(){
  const shown=useMemo(()=>{const q=query.toLowerCase().trim();return (data?.reviews||[]).filter(r=>!q||JSON.stringify(r).toLowerCase().includes(q));},[data,query]);
  if(loading)return <main className="py-24 text-center text-sm text-stone-400">Loading…</main>;
  if(!user)return <AuthScreen/>;
- if(error==='forbidden')return <main className="mx-auto max-w-lg px-5 py-20"><h1 style={serif} className="mb-3 text-3xl">Team access only</h1><p className="text-sm leading-relaxed text-stone-500">This page shows every feedback response. Ask whoever manages the Vercel project to add <code className="rounded bg-stone-100 px-1">{user.email}</code> to the <code className="rounded bg-stone-100 px-1">ADMIN_EMAILS</code> environment variable (comma-separated), then redeploy.</p><Link href="/" className="mt-6 inline-block text-sm underline">Back to Yousra</Link></main>;
+ if(error==='forbidden')return <main className="mx-auto max-w-lg px-5 py-20"><h1 style={serif} className="mb-3 text-3xl">Team access only</h1><p className="text-sm leading-relaxed text-stone-500">This page shows every feedback response. Ask whoever manages the Vercel project to add <code className="rounded bg-stone-100 px-1">{user.email}</code> to the <code className="rounded bg-stone-100 px-1">ADMIN_EMAILS</code> environment variable (comma-separated), then redeploy.</p><Link href="/" className="mt-6 inline-block text-sm underline">Back to Yusra</Link></main>;
  const s=data?.summary,l=labels?.summary;
  const label=(list:{id:string;label:string}[],id:string)=>list.find(x=>x.id===id)?.label||id;
  return <main className="min-h-screen bg-[#FAF8F5] px-4 py-10"><div className="mx-auto max-w-6xl">
@@ -42,10 +42,12 @@ export default function ReviewsAdmin(){
    <div className="flex flex-wrap gap-2"><button className={secondaryClass+' inline-flex items-center gap-1.5'} onClick={()=>setTick(t=>t+1)}><RefreshCw size={13}/>Refresh</button><button className={secondaryClass+' inline-flex items-center gap-1.5'} onClick={()=>void download('/api/admin/reviews?format=csv',`yousra-feedback-${today()}.csv`)}><Download size={13}/>Feedback CSV</button><button className={secondaryClass+' inline-flex items-center gap-1.5'} onClick={()=>void download('/api/admin/labels?format=jsonl',`yousra-modesty-labels-${today()}.jsonl`)}><Download size={13}/>Modesty labels (JSONL)</button><button className={secondaryClass+' inline-flex items-center gap-1.5'} onClick={()=>void download('/api/admin/labels?format=csv',`yousra-modesty-labels-${today()}.csv`)}><Download size={13}/>Labels CSV</button></div></div>
   {error?<p role="alert" className="mb-6 text-sm text-red-700">{error}</p>:null}
   {!s?<p className="text-sm text-stone-400">Loading feedback…</p>:<>
-   <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-5">{[
-    ['Responses',String(s.count),s.legacy?`${s.legacy} from the old survey`:''],
+   <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-4">{[
+    ['Responses',String(s.count),s.v3?`${s.v3} on the new short form`:''],
     ['Star rating',s.overall!==null?`${s.overall} ★`:'—','average out of 5'],
-    ['“Very disappointed”',s.veryDisappointed!==null?`${s.veryDisappointed}%`:'—',s.pmfResponses?`of ${s.pmfResponses} · 40%+ signals product-market fit`:'if Yousra disappeared'],
+    ['How hard the problem is',s.problem!==null?`${s.problem} / 5`:'—',s.problemHigh!==null?`${s.problemHigh}% say very hard or exhausting`:'new short form'],
+    ['How well Yusra solves it',s.solution!==null?`${s.solution} / 5`:'—',s.solutionHigh!==null?`${s.solutionHigh}% say well or perfectly`:'new short form'],
+    ['“Very disappointed”',s.veryDisappointed!==null?`${s.veryDisappointed}%`:'—',s.pmfResponses?`of ${s.pmfResponses} · 40%+ signals product-market fit`:'if Yusra disappeared'],
     ['Pieces rated',String(l?.labels??s.labeled),l?.products?`${l.products} products`:''],
     ['AI agrees with shoppers',l?.agreement!==null&&l?.agreement!==undefined?`${l.agreement}%`:'—','coverage level, per product'],
    ].map(([k,v,sub])=><div key={k} className="rounded-2xl border border-stone-100 bg-white p-4 shadow-sm"><p className="text-xs text-stone-400">{k}</p><p style={serif} className="mt-1 text-3xl text-stone-900">{v}</p>{sub?<p className="mt-1 text-[10px] leading-snug text-stone-400">{sub}</p>:null}</div>)}</div>
@@ -66,12 +68,13 @@ export default function ReviewsAdmin(){
    {!shown.length?<p className="py-10 text-center text-sm text-stone-400">{data.reviews.length?'No responses match that search.':'No feedback yet. Share /feedback with your testers.'}</p>:<div className="space-y-3">{shown.map(r=><article key={r.id} className="rounded-2xl border border-stone-100 bg-white p-5 shadow-sm">
     <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2"><p className="text-sm font-medium text-stone-800">{r.name||'Anonymous'} <span className="font-normal text-stone-400">{r.email||r.contact||''}</span></p><p className="text-xs text-stone-400">{new Date(r.createdAt).toLocaleString('en-US')} · <span className="text-[#B08A3A]" aria-label={`${r.overall} of 5 stars`}>{stars(r.overall)}</span> {words[r.overall]}{r.disappointed?` · ${r.disappointed} disappointed`:''}{r.labeled?` · rated ${r.labeled}`:''}{r.version!==2?' · old survey':''}</p></div>
     {r.sentence?<p style={serif} className="mb-3 text-xl leading-snug text-stone-800">“{r.sentence}”</p>:null}
+    {r.version===3?<p className="text-xs text-stone-500"><span className="text-stone-400">Problem:</span> {r.problem}/5 · <span className="text-stone-400">Solution:</span> {r.solution}/5</p>:null}
     {r.version===2?<div className="space-y-1 text-xs text-stone-500">
      {r.liked?.length?<p><span className="text-stone-400">Liked:</span> {r.liked.map(x=>label(s.liked,x)).join(', ')}</p>:null}
      {r.wanted?.length||r.wantedOther?.length?<p><span className="text-stone-400">Wants:</span> {[...(r.wanted||[]).map(x=>label(s.wanted,x)),...(r.wantedOther||[])].join(', ')}</p>:null}
      {r.priorities?.length?<p><span className="text-stone-400">Priorities:</span> {r.priorities.map((x,i)=>`${i+1}. ${label(s.priorities,x)}`).join('  ')}</p>:null}
      {r.sites?.length||r.sitesOther?.length?<p><span className="text-stone-400">Shopped at:</span> {[...(r.sites||[]).map(x=>label(s.sites,x)),...(r.sitesOther||[])].join(', ')}</p>:null}
-    </div>:<div className="space-y-1 text-sm text-stone-600">{r.loved?<p><span className="text-stone-400">Loved:</span> {r.loved}</p>:null}{r.improve?<p><span className="text-stone-400">Hard:</span> {r.improve}</p>:null}{r.wish?<p><span className="text-stone-400">Wish:</span> {r.wish}</p>:null}</div>}
+    </div>:r.version===3?null:<div className="space-y-1 text-sm text-stone-600">{r.loved?<p><span className="text-stone-400">Loved:</span> {r.loved}</p>:null}{r.improve?<p><span className="text-stone-400">Hard:</span> {r.improve}</p>:null}{r.wish?<p><span className="text-stone-400">Wish:</span> {r.wish}</p>:null}</div>}
     {r.quoteOk?<p className="mt-2 text-[11px] text-stone-400">OK to quote</p>:null}
    </article>)}</div>}
   </>}

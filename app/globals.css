@@ -76,3 +76,19 @@ h1, h2, h3, h4, h5, h6, .font-serif {
 .masonry-item {
   width: 100%;
 }
+
+/* Profile: settings sidebar + editor. On phones, one at a time. */
+.profile-layout { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 24px; align-items: start; }
+.profile-nav { display: flex; flex-direction: column; gap: 4px; background: #fff; border-radius: 16px; padding: 8px; border: 1px solid rgba(53,45,39,0.08); position: sticky; top: 80px; }
+.profile-back { display: none; }
+@media (max-width: 767px) {
+  .profile-layout { grid-template-columns: 1fr; }
+  .profile-nav { position: static; }
+  .profile-nav.has-open, .profile-panel:not(.is-open) { display: none; }
+  .profile-back { display: inline-flex; }
+}
+
+/* Phones: leave room for the bottom tab bar (components/nav.tsx) so it never covers page content. */
+@media (max-width: 767px) {
+  body { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+}

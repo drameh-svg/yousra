@@ -1,3 +1,5 @@
+import { brandWarmSearch } from './queries.mjs';
+import { hiddenForEveryone } from './shop-filter.mjs';
 // Explore page brand previews: a few listings per brand, taken only from that brand's own site (or listed
 // under its name). Brands with too few pieces get a background search of their site, so they fill in.
 import { store } from './store.mjs';
@@ -8,7 +10,7 @@ import { fromBrand, rankProducts } from './rank.mjs';
 import { onboarding } from './seed.mjs';
 import { hash, text } from './util.mjs';
 
-const usable = p => !p.demo && p.image && !p.excluded && p.productPage !== false && p.availability !== 'out_of_stock';
+const usable = p => !p.demo && p.image && !p.excluded && !hiddenForEveryone(p) && p.productPage !== false && p.availability !== 'out_of_stock';
 
 export function parseBrands(value) {
   return String(value || '').split(',').slice(0, 8).map(entry => {
@@ -23,7 +25,7 @@ export function warmBrand({ domain, name }) {
     const key = `brand-warm-v1:${hash(domain)}`, last = await store.get('cache', key);
     if (last && last.until > Date.now()) return;
     await store.put('cache', key, { until: Date.now() + Number(process.env.BRAND_WARM_HOURS || 6) * 3600000 });
-    const found = await discover(`${name} modest women clothing`.trim(), 1, { site: domain });
+    const found = await discover(brandWarmSearch(name, Math.floor(Date.now() / 86400000)), 1, { site: domain });
     await Promise.all(found.map(async p => { const old = await store.get('product', p.id); return store.put('product', p.id, old ? { ...p, ...old } : p); }));
   })());
 }

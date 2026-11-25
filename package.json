@@ -14,7 +14,10 @@
     "test": "node --test tests/*.test.mjs",
     "test:browser": "node scripts/frontend-smoke.mjs",
     "eval:recs": "node --env-file-if-exists=.env scripts/eval-recs.mjs",
-    "eval:modesty": "node --env-file-if-exists=.env scripts/eval-modesty.mjs"
+    "eval:modesty": "node --env-file-if-exists=.env scripts/eval-modesty.mjs",
+    "label:queue": "node --env-file-if-exists=.env scripts/build-label-queue.mjs",
+    "eval:prompt": "node --env-file-if-exists=.env scripts/eval-prompt.mjs",
+    "vision:refresh": "node --env-file-if-exists=.env scripts/refresh-vision.mjs"
   },
   "dependencies": {
     "@base-ui/react": "1.9.0",

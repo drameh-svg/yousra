@@ -1,0 +1,99 @@
+{
+  "_comment": "Config-editable Serper search hints for classifier aesthetics. Named sources are query hints only — brand name alone never passes aesthetic/coverage/price filters. streetwear/earthy/clean_girl: broad queries from style_descriptions (zip/board context); no named retailers yet.",
+  "grunge": {
+    "retailers": [
+      "Minga London",
+      "Isabella Vrana",
+      "Dollfaceonline",
+      "Ariadnaw",
+      "Pixie Rebels",
+      "Oborn Studios",
+      "attempt.com.cn",
+      "Venia"
+    ],
+    "queries": [
+      "grunge women clothing",
+      "distressed dark layering women"
+    ],
+    "marketplaces": []
+  },
+  "90s_minimalism": {
+    "retailers": [
+      "Kotn",
+      "Geel",
+      "ASOS",
+      "Bemu",
+      "Low Classic",
+      "Uniqlo",
+      "Mocatrend",
+      "Jawda Modest"
+    ],
+    "queries": [
+      "90s minimalist women clothing",
+      "clean cut midi skirt sweater women"
+    ],
+    "marketplaces": []
+  },
+  "y2k": {
+    "retailers": [
+      "Byreclaim",
+      "Pixie Rebels",
+      "Oborn Studios"
+    ],
+    "queries": [
+      "y2k women clothing",
+      "low rise embellished denim women"
+    ],
+    "marketplaces": [
+      { "site": "vinted.com", "query": "y2k sabrinaaaa1011" }
+    ]
+  },
+  "coquette": {
+    "retailers": [
+      "Deethelabel",
+      "Nokshi New York",
+      "Whimsigirl SGN",
+      "Emmalouthelabel",
+      "A Room London",
+      "Loveable Saturday",
+      "Brandy Melville",
+      "Femmenina",
+      "Cider"
+    ],
+    "queries": [
+      "coquette women clothing",
+      "bow lace ruffle soft pink women"
+    ],
+    "marketplaces": [
+      { "site": "etsy.com", "query": "CordOfficial coquette" },
+      { "site": "myshopify.com", "query": "Maryams Collection Store" }
+    ]
+  },
+  "streetwear": {
+    "retailers": [],
+    "queries": [
+      "streetwear women clothing",
+      "oversized hoodie baggy jeans women",
+      "urban casual graphic top women"
+    ],
+    "marketplaces": []
+  },
+  "earthy": {
+    "retailers": [],
+    "queries": [
+      "earthy boho women clothing",
+      "linen rust olive crochet women",
+      "organic cotton flowing skirt women"
+    ],
+    "marketplaces": []
+  },
+  "clean_girl": {
+    "retailers": [],
+    "queries": [
+      "clean girl aesthetic clothing women",
+      "neutral solid basics matching set women",
+      "minimal athleisure sweatshirt women"
+    ],
+    "marketplaces": []
+  }
+}

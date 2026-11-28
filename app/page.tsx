@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, type FormEvent } from "react";
 import { Search, X, SlidersHorizontal } from "lucide-react";
 import { ProductCard } from "@/components/product-card";
-import { aesthetics, type Aesthetic } from "@/lib/products";
+import { aesthetics, aestheticFilterId, type Aesthetic } from "@/lib/products";
 import {useCatalog} from "@/lib/use-catalog";
 import {toCard} from "@/lib/catalog";
 import {AccountGate} from "@/components/account-gate";
@@ -37,7 +37,7 @@ function HomeFeed() {
   const panelRef = useRef<HTMLDivElement>(null);
 
   const catalogParams: Record<string, string> = {};
-  if (active) catalogParams.style = active.toLowerCase();
+  if (active) catalogParams.style = aestheticFilterId[active] || active.toLowerCase().replace(/\s+/g, "_");
   if (advanced.color) catalogParams.color = advanced.color.toLowerCase();
   if (advanced.size) catalogParams.size = advanced.size.toLowerCase();
   if (advanced.clothingType) catalogParams.category = advanced.clothingType.toLowerCase();

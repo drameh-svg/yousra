@@ -1,0 +1,19 @@
+{
+  "model_id": "google/siglip2-base-patch16-224",
+  "styles": [
+    "90s_minimalism",
+    "clean_girl",
+    "coquette",
+    "earthy",
+    "grunge",
+    "streetwear",
+    "y2k"
+  ],
+  "match": {
+    "max_rank": 3,
+    "min_score": 0.1,
+    "rank_weights": { "1": 1.0, "2": 0.55, "3": 0.25 },
+    "score_scale": 60
+  },
+  "notes": "Scores are raw model outputs for ranking only — not calibrated shopper probabilities. Colab board eval (~88% rank-one, ~99% top-3 on 109 Pinterest images) is not retailer-product accuracy."
+}

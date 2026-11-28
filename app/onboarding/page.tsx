@@ -10,15 +10,16 @@ import { writePrefs } from "@/lib/use-prefs";
 import { BRAND_LIST } from "@/lib/brands";
 import { products } from "@/lib/products";
 
-type Aesthetic = "Y2K" | "Whimsy" | "90s Chic" | "Clean Girl" | "Alternative" | "Earthy";
+type Aesthetic = "Y2K" | "Coquette" | "90s Minimalism" | "Clean Girl" | "Grunge" | "Streetwear" | "Earthy";
 
-const AESTHETICS: { label: Aesthetic; image: string; description: string }[] = [
-  { label: "Y2K", image: products.find((p) => p.id === "13")!.image, description: "Cyber, metallic, futuristic" },
-  { label: "Whimsy", image: products.find((p) => p.id === "7")!.image, description: "Dreamy, playful, fairy-tale" },
-  { label: "90s Chic", image: products.find((p) => p.id === "20")!.image, description: "Sleek, tailored, effortless" },
-  { label: "Clean Girl", image: products.find((p) => p.id === "1")!.image, description: "Soft, natural, minimalist" },
-  { label: "Alternative", image: products.find((p) => p.id === "17")!.image, description: "Edgy, punk, indie spirit" },
-  { label: "Earthy", image: products.find((p) => p.id === "19")!.image, description: "Organic, warm, botanical" },
+const AESTHETICS: { label: Aesthetic; id: string; image: string; description: string }[] = [
+  { label: "90s Minimalism", id: "90s_minimalism", image: products.find((p) => p.id === "20")!.image, description: "Clean-cut, understated, tailored" },
+  { label: "Clean Girl", id: "clean_girl", image: products.find((p) => p.id === "1")!.image, description: "Solid basics, soft minimalism" },
+  { label: "Coquette", id: "coquette", image: products.find((p) => p.id === "7")!.image, description: "Bows, lace, romantic details" },
+  { label: "Earthy", id: "earthy", image: products.find((p) => p.id === "19")!.image, description: "Organic, warm, botanical" },
+  { label: "Grunge", id: "grunge", image: products.find((p) => p.id === "17")!.image, description: "Distressed, dark, alternative" },
+  { label: "Streetwear", id: "streetwear", image: products.find((p) => p.id === "13")!.image, description: "Oversized, urban, casual" },
+  { label: "Y2K", id: "y2k", image: products.find((p) => p.id === "13")!.image, description: "Early-2000s, metallic, playful" },
 ];
 
 const MAX_CHOICES = 5;
@@ -68,7 +69,7 @@ export default function OnboardingPage() {
     try{
     if(session.user&&session.profile){
       const preferences=structuredClone(session.profile.preferences);
-      preferences.preferredBrands=selectedBrands;preferences.styles=selectedAesthetics.map(s=>s.toLowerCase());preferences.budgetMax=budget?Number(budget):null;
+      preferences.preferredBrands=selectedBrands;preferences.styles=selectedAesthetics.map(s=>AESTHETICS.find(a=>a.label===s)?.id||s.toLowerCase().replace(/\s+/g,'_'));preferences.budgetMax=budget?Number(budget):null;
       for(const [category,rule] of Object.entries(preferences.rules)){
         rule.sleeves=coverage==='Conservative'?'long':coverage==='Moderate'?'elbow':'any';
         rule.neckline=coverage==='Conservative'?'high':coverage==='Moderate'?'medium':'any';

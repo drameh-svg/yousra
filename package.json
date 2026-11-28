@@ -17,7 +17,9 @@
     "eval:modesty": "node --env-file-if-exists=.env scripts/eval-modesty.mjs",
     "label:queue": "node --env-file-if-exists=.env scripts/build-label-queue.mjs",
     "eval:prompt": "node --env-file-if-exists=.env scripts/eval-prompt.mjs",
-    "vision:refresh": "node --env-file-if-exists=.env scripts/refresh-vision.mjs"
+    "vision:refresh": "node --env-file-if-exists=.env scripts/refresh-vision.mjs",
+    "style:backfill": "node --env-file-if-exists=.env scripts/style-backfill.mjs",
+    "style:classify-one": "python3 services/style-classifier/cli_classify_one.py"
   },
   "dependencies": {
     "@base-ui/react": "1.9.0",

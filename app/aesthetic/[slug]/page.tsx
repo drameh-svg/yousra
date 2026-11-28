@@ -3,12 +3,15 @@ import { ArrowLeft } from "lucide-react";
 import {DiscoveryGrid} from "@/components/discovery-grid";
 
 const AESTHETIC_SLUGS = [
-  { slug: "y2k", label: "Y2K" },
-  { slug: "whimsy", label: "Whimsy" },
-  { slug: "90s-chic", label: "90s Chic" },
-  { slug: "clean-girl", label: "Clean Girl" },
-  { slug: "alternative", label: "Alternative" },
+  { slug: "90s_minimalism", label: "90s Minimalism" },
+  { slug: "90s-minimalism", label: "90s Minimalism", style: "90s_minimalism" },
+  { slug: "clean_girl", label: "Clean Girl" },
+  { slug: "clean-girl", label: "Clean Girl", style: "clean_girl" },
+  { slug: "coquette", label: "Coquette" },
   { slug: "earthy", label: "Earthy" },
+  { slug: "grunge", label: "Grunge" },
+  { slug: "streetwear", label: "Streetwear" },
+  { slug: "y2k", label: "Y2K" },
 ];
 
 interface Props { params: Promise<{ slug: string }> }
@@ -19,7 +22,9 @@ export function generateStaticParams() {
 
 export default async function AestheticPage({ params }: Props) {
   const { slug } = await params;
-  const label = AESTHETIC_SLUGS.find(a => a.slug === slug)?.label ?? slug.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+  const entry = AESTHETIC_SLUGS.find(a => a.slug === slug);
+  const label = entry?.label ?? slug.replace(/[_-]/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+  const style = ("style" in (entry || {}) && entry && "style" in entry ? (entry as { style?: string }).style : undefined) || slug.replace(/-/g, "_");
 
   return (
     <main style={{ minHeight: "100vh", background: "var(--bg)", padding: "28px 20px 80px" }}>
@@ -37,7 +42,7 @@ export default async function AestheticPage({ params }: Props) {
         <p style={{ fontSize: "13px", color: "#637180", marginBottom: "28px" }}>
           Explore {label.toLowerCase()} pieces that fit the look you love and the coverage you choose.
         </p>
-        <DiscoveryGrid filters={{style:slug}}/>
+        <DiscoveryGrid filters={{style}}/>
       </div>
     </main>
   );

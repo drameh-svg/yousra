@@ -1,5 +1,6 @@
 import { HttpError, number, text } from './util.mjs';
 import { normalizeCategory, normalizeStyle, colorFamilies } from './taxonomy.mjs';
+import { sanitizeStyles } from './style-preferences.mjs';
 
 export const categories = ['dress','skirt','top','pants','outerwear'];
 export const choices = {
@@ -18,6 +19,8 @@ export function validatePreferences(input) {
     if (input[field] !== undefined && (!Array.isArray(input[field]) || input[field].length>30 || input[field].some(x=>typeof x!=='string'))) throw new HttpError(400,`Invalid ${field}`);
     out[field] = (input[field] || []).map(x=>text(x,60).toLowerCase()).filter(Boolean);
   }
+  // Keep only the seven SigLIP labels; drop legacy values (no remapping).
+  out.styles = sanitizeStyles(out.styles).styles;
   for (const field of ['pantsAllowed','allowLayering']) { if (input[field] !== undefined && typeof input[field] !== 'boolean') throw new HttpError(400,`Invalid ${field}`); out[field]=input[field]??out[field]; }
   if (input.destination && input.destination !== 'US') throw new HttpError(400,'MVP shipping destination is US');
   out.budgetMax = input.budgetMax === null || input.budgetMax === undefined || input.budgetMax === '' ? null : number(input.budgetMax,1,100000,null);
@@ -94,10 +97,14 @@ export function predictedLevel(product) {
 export function filtersFrom(input={}) {
   const o = {};
   for (const k of ['style','color','size','category','shipping']) if (input[k]) o[k]=text(input[k],60).toLowerCase().trim();
-  // The For You panel sends labels like "Dresses", "Abayas", "90s Chic"; accept them in any casing or plural.
+  // The For You panel sends labels like "Dresses", "Abayas", "90s Minimalism"; accept them in any casing or plural.
   if (o.category) { const c=normalizeCategory(o.category); if(!c)throw new HttpError(400,'Unknown clothing category'); o.category=c; }
-  // Persist / filter on classifier ids (90s_minimalism, clean_girl, …).
-  if (o.style) o.style=normalizeStyle(o.style)[0]||o.style;
+  // Persist / filter on classifier ids only (legacy aesthetic names are rejected).
+  if (o.style) {
+    const s=normalizeStyle(o.style)[0];
+    if(!s)throw new HttpError(400,'Unknown aesthetic');
+    o.style=s;
+  }
   if (o.color) o.color=colorFamilies([o.color])[0]||o.color;
   // Brand pages: restrict to one retailer by its domain (and name, for marketplaces that list the brand).
   if (input.brand) { const d=String(input.brand).toLowerCase().trim().replace(/^https?:\/\//,'').replace(/^www\./,'').replace(/\/.*$/,''); if(!/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(d))throw new HttpError(400,'Invalid brand'); o.brand=d; }

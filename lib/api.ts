@@ -39,8 +39,6 @@ export const allStyles=['90s_minimalism','clean_girl','coquette','earthy','grung
 export const styleLabel:Record<string,string>={
   '90s_minimalism':'90s Minimalism',clean_girl:'Clean Girl',coquette:'Coquette',
   earthy:'Earthy',grunge:'Grunge',streetwear:'Streetwear',y2k:'Y2K',
-  // Legacy display keys (read-only until preference migration confirms ambiguous maps)
-  whimsy:'Whimsy','90s chic':'90s Chic','clean girl':'Clean Girl',alternative:'Alternative',
 };
 export const colors=['black','white','blue','navy','green','pink','red','brown','beige','cream','gray','purple','yellow'];
 export const pretty=(s:string)=>styleLabel[s]??s.replaceAll('_',' ').replace(/\b\w/g,c=>c.toUpperCase());

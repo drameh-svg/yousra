@@ -9,12 +9,13 @@ import { spotlighted, categories, brands, trending } from "@/lib/explore-data";
 import { useBrandPreviews } from "@/lib/use-brand-previews";
 
 const aestheticTiles = [
-  { label: "Y2K", slug: "y2k", image: products.find((p) => p.id === "13")!.image },
-  { label: "Whimsy", slug: "whimsy", image: products.find((p) => p.id === "7")!.image },
-  { label: "90s Chic", slug: "90s-chic", image: products.find((p) => p.id === "20")!.image },
+  { label: "90s Minimalism", slug: "90s-minimalism", image: products.find((p) => p.id === "20")!.image },
   { label: "Clean Girl", slug: "clean-girl", image: products.find((p) => p.id === "1")!.image },
-  { label: "Alternative", slug: "alternative", image: products.find((p) => p.id === "17")!.image },
+  { label: "Coquette", slug: "coquette", image: products.find((p) => p.id === "7")!.image },
   { label: "Earthy", slug: "earthy", image: products.find((p) => p.id === "19")!.image },
+  { label: "Grunge", slug: "grunge", image: products.find((p) => p.id === "17")!.image },
+  { label: "Streetwear", slug: "streetwear", image: products.find((p) => p.id === "13")!.image },
+  { label: "Y2K", slug: "y2k", image: products.find((p) => p.id === "13")!.image },
 ];
 
 // Brand spotlight, aesthetics, categories and trending: shown under the community feed on /explore.

@@ -5,11 +5,7 @@ export type Aesthetic =
   | "Clean Girl"
   | "Grunge"
   | "Streetwear"
-  | "Earthy"
-  // Legacy sample-catalog labels still present on static seed rows until remapped
-  | "Whimsy"
-  | "90s Chic"
-  | "Alternative";
+  | "Earthy";
 
 export interface Product {
   id: string;
@@ -60,7 +56,7 @@ export const products: Product[] = [
     store: "H&M",
     price: "$35",
     image: PIN("2c/cb/53/2ccb5344fe566f8cfbf2d1a02f805454.jpg"),
-    aesthetic: "90s Chic",
+    aesthetic: "90s Minimalism",
     storeUrl: "https://eg.hm.com",
     pinUrl: "https://www.pinterest.com/pin/716635359503131639/",
     description:
@@ -99,7 +95,7 @@ export const products: Product[] = [
     store: "Damson Madder",
     price: "$75",
     image: PIN("81/9a/b4/819ab4d9b012b86ba8d9f4cd6bd122de.webp"),
-    aesthetic: "90s Chic",
+    aesthetic: "90s Minimalism",
     storeUrl: "https://damsonmadder.com/products/button-through-hood-blue",
     pinUrl: "https://www.pinterest.com/pin/716635359503131564/",
     description:
@@ -107,14 +103,14 @@ export const products: Product[] = [
     sizes: ["6", "8", "10", "12", "14"],
   },
 
-  // ── Whimsy ───────────────────────────────────────────────────────────────
+  // ── Coquette ───────────────────────────────────────────────────────────────
   {
     id: "7",
     title: "Lace Flower Abaya Set — Pink",
     store: "Shop Fatima Diallo",
     price: "$120",
     image: PIN("f6/e6/42/f6e642d74775c03f1b9dfac7bc50b5c1.jpg"),
-    aesthetic: "Whimsy",
+    aesthetic: "Coquette",
     storeUrl: "https://www.instagram.com/p/DY0BTL0jctl/",
     pinUrl: "https://www.pinterest.com/pin/716635359503132136/",
     description:
@@ -153,7 +149,7 @@ export const products: Product[] = [
     store: "The Fox Shop",
     price: "$55",
     image: PIN("32/ea/4c/32ea4cbc8d51df713688b390bf45652c.jpg"),
-    aesthetic: "Whimsy",
+    aesthetic: "Coquette",
     storeUrl: "https://thefoxshop.co",
     pinUrl: "https://www.pinterest.com/pin/716635359503131633/",
     description:
@@ -166,7 +162,7 @@ export const products: Product[] = [
     store: "Boden",
     price: "$95",
     image: PIN("47/2d/8a/472d8affc7c65cd0649978089c0c8a1e.jpg"),
-    aesthetic: "Alternative",
+    aesthetic: "Grunge",
     storeUrl: "https://boden.com",
     pinUrl: "https://www.pinterest.com/pin/716635359503131585/",
     description:
@@ -179,7 +175,7 @@ export const products: Product[] = [
     store: "Lazy Oaf",
     price: "$68",
     image: PIN("2a/9f/f7/2a9ff7f797e78957a56f89b16983c43c.jpg"),
-    aesthetic: "Whimsy",
+    aesthetic: "Coquette",
     storeUrl: "https://lazyoaf.com",
     pinUrl: "https://www.pinterest.com/pin/716635359503131637/",
     description:
@@ -220,7 +216,7 @@ export const products: Product[] = [
     store: "Urban Outfitters",
     price: "$44",
     image: PIN("c9/bc/95/c9bc95145fef549446ed5b2108513320.jpg"),
-    aesthetic: "Alternative",
+    aesthetic: "Grunge",
     storeUrl: "https://urbanoutfitters.com",
     pinUrl: "https://www.pinterest.com/pin/AVPjx-M1ZcXohU2j0wzTwBliPCxPQTkmYqP_ydVUaC2uoVKse71LeZ8yPjdpa3mBSp642kWoa0eqjq_Kq1Q3owg/",
     description:
@@ -233,7 +229,7 @@ export const products: Product[] = [
     store: "Project ISR",
     price: "$130",
     image: PIN("f1/0d/20/f10d20c50cf13ad07a5fe516ce8b0aa9.jpg"),
-    aesthetic: "Alternative",
+    aesthetic: "Grunge",
     storeUrl: "https://projectisr.com",
     pinUrl: "https://www.pinterest.com/pin/716635359503131652/",
     description:
@@ -246,7 +242,7 @@ export const products: Product[] = [
     store: "Cosmoslay",
     price: "$52",
     image: PIN("ca/c7/28/cac72856092b7c75840899ff83e53058.jpg"),
-    aesthetic: "Alternative",
+    aesthetic: "Grunge",
     storeUrl: "https://cosmoslay.com",
     pinUrl: "https://www.pinterest.com/pin/AWPvB_S_pN80rrX1Ea5GNNf_cwPF5CiHQIuB2E3AcOiYVfFNyuKT776ZRTeNlxfuh-dQB4T4PH0tp6RhNjLwCRM/",
     description:
@@ -287,7 +283,7 @@ export const products: Product[] = [
     store: "W Concept",
     price: "$145",
     image: PIN("82/82/b4/8282b4489ee37590e8a048e663938b2b.jpg"),
-    aesthetic: "90s Chic",
+    aesthetic: "90s Minimalism",
     storeUrl: "https://wconcept.com",
     pinUrl: "https://www.pinterest.com/pin/716635359503131618/",
     description:
@@ -300,7 +296,7 @@ export const products: Product[] = [
     store: "Belchic",
     price: "$98",
     image: PIN("e9/24/73/e92473e2f2c788dd765b7c1b36f888cb.jpg"),
-    aesthetic: "90s Chic",
+    aesthetic: "90s Minimalism",
     storeUrl: "https://belchic.shop",
     pinUrl: "https://www.pinterest.com/pin/716635359503132111/",
     description:
@@ -313,7 +309,7 @@ export const products: Product[] = [
     store: "Shopee",
     price: "$78",
     image: PIN("9b/29/f4/9b29f4603d631a5194313fed60c9a0fe.jpg"),
-    aesthetic: "90s Chic",
+    aesthetic: "90s Minimalism",
     storeUrl: "https://shopee.co.id",
     pinUrl: "https://www.pinterest.com/pin/716635359503131570/",
     description:
@@ -326,7 +322,7 @@ export const products: Product[] = [
     store: "Staud",
     price: "$210",
     image: PIN("3a/55/29/3a55298496faa685c59b1bdde0aec1b8.jpg"),
-    aesthetic: "90s Chic",
+    aesthetic: "90s Minimalism",
     storeUrl: "https://staud.clothing",
     pinUrl: "https://www.pinterest.com/pin/716635359503131581/",
     description:
@@ -367,7 +363,7 @@ export const products: Product[] = [
     store: "Garmentory",
     price: "$75",
     image: PIN("7d/3e/44/7d3e44e3141f8f44e6d83d45206791e0.jpg"),
-    aesthetic: "Alternative",
+    aesthetic: "Grunge",
     storeUrl: "https://garmentory.com",
     pinUrl: "https://www.pinterest.com/pin/716635359503131642/",
     description:
@@ -406,7 +402,7 @@ export const products: Product[] = [
     store: "Jennah Boutique",
     price: "$65",
     image: PIN("38/39/11/383911a73b6804424da8260e305e3905.jpg"),
-    aesthetic: "90s Chic",
+    aesthetic: "90s Minimalism",
     storeUrl: "https://jennah-boutique.com",
     pinUrl: "https://www.pinterest.com/pin/716635359503131535/",
     description:
@@ -419,7 +415,7 @@ export const products: Product[] = [
     store: "SHEIN",
     price: "$18",
     image: PIN("ab/a4/51/aba45149422c6e77ab69837118c9974f.jpg"),
-    aesthetic: "Whimsy",
+    aesthetic: "Coquette",
     storeUrl: "https://shein.com",
     pinUrl: "https://www.pinterest.com/pin/716635359503131588/",
     description:

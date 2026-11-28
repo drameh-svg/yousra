@@ -41,7 +41,7 @@ Use reactions, not direct collection writes, to modify Likes. System ID `likes` 
 
 ```json
 {
-  "styles": ["minimal", "casual"],
+  "styles": ["clean_girl", "earthy"],
   "colors": ["black", "blue"],
   "sizes": ["m"],
   "excludedBrands": [],

@@ -26,7 +26,18 @@ import { body,config,hash,host,HttpError,id,json,now,safeUrl,text } from './util
 
 const libraryInitial = () => ({collections:[{id:'likes',name:'Likes',productIds:[],system:true}],reactions:{}});
 async function library(uid) {await store.create('library',uid,{...libraryInitial(),version:0},uid);return await store.get('library',uid,uid);}
-async function profile(uid) {await store.create('profile',uid,{id:uid,preferences:defaultPreferences(),swipes:[],onboarded:false,createdAt:now(),version:0},uid);return await store.get('profile',uid,uid);}
+async function profile(uid) {
+  await store.create('profile',uid,{id:uid,preferences:defaultPreferences(),swipes:[],onboarded:false,createdAt:now(),version:0},uid);
+  const p=await store.get('profile',uid,uid);
+  if(!p?.preferences)return p;
+  // Strip legacy aesthetic ids from saved prefs (no remapping).
+  const { sanitizeStyles } = await import('./style-preferences.mjs');
+  const { styles, dropped } = sanitizeStyles(p.preferences.styles||[]);
+  if(!dropped.length)return p;
+  const next={...p,preferences:{...p.preferences,styles}};
+  await store.put('profile',uid,next,uid);
+  return next;
+}
 async function catalog() {const real=await store.list('product');return [...real,...curatedProducts,...(config().demo?sampleProducts:[])];}
 function interactions(lib) {return Object.entries(lib.reactions).map(([productId,r])=>({...r,productId,saved:lib.collections.some(c=>!c.system&&c.productIds.includes(productId))}));}
 function shopUrl(p) {
@@ -299,7 +310,7 @@ export async function handle(request, context={}) {
     }
     if(path==='/api/search/suggestions'&&method==='GET') {
       const recent=[...new Set((await store.list('search',u.id,30)).map(x=>x.query))].slice(0,6);
-      return json({recent,suggested:[`${p.preferences.styles[0]||'casual'} maxi dress`,'wide-leg trousers','long sleeve blouse'],trending:[],note:'Trending stays empty until there is enough real search activity.'});
+      return json({recent,suggested:[`${p.preferences.styles[0]||'clean_girl'} maxi dress`,'wide-leg trousers','long sleeve blouse'],trending:[],note:'Trending stays empty until there is enough real search activity.'});
     }
     if(path==='/api/collections'&&method==='GET')return json({collections:lib.collections});
     if(path==='/api/collections'&&method==='POST') {

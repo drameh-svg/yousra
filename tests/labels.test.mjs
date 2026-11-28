@@ -14,7 +14,7 @@ const {handle}=await import('../src/api.mjs');
 const {store}=await import('../src/store.mjs');
 
 const prefsFor=level=>{const p=defaultPreferences();for(const c of Object.keys(p.rules))p.rules[c]=presetRules(level,c);return p;};
-const dress=(id,o={})=>({id,title:'Linen dress',description:'',category:'dress',styles:['minimal'],colors:['blue'],attributes:{sleeves:'short',neckline:'medium',length:'midi',fit:'regular',transparency:'opaque',slits:'none',cutouts:'none'},evidence:{},confidence:0.9,analysisSource:'vision+description',...o});
+const dress=(id,o={})=>({id,title:'Linen dress',description:'',category:'dress',styles:['clean_girl'],colors:['blue'],attributes:{sleeves:'short',neckline:'medium',length:'midi',fit:'regular',transparency:'opaque',slits:'none',cutouts:'none'},evidence:{},confidence:0.9,analysisSource:'vision+description',...o});
 const votes=list=>summarizeVotes(Object.fromEntries(list.map((level,i)=>[`v${i}`,{level,issues:[]}])));
 
 test('shopper labels confirm or exclude coverage once enough people agree',()=>{
@@ -48,7 +48,7 @@ test('vision results are cached permanently and reused without a model call',asy
  const original=globalThis.fetch;globalThis.fetch=()=>{throw new Error('no network in this test');};
  try{
   const p={...dress('cached'),attributes:{},evidence:{},image:'https://cdn.example/x.jpg',images:['https://cdn.example/x.jpg'],pageFetchedAt:new Date().toISOString(),title:'Abaya'};
-  await store.put('cache',visionKey(p.image,p.title),{result:{itemIsClothing:true,category:'dress',colors:['black'],styles:['classic'],attributes:{sleeves:'long',neckline:'high',length:'maxi',fit:'loose',transparency:'opaque',slits:'none',cutouts:'none'},evidence:{sleeves:{confidence:0.9,reason:'photo'}},confidence:0.9}});
+  await store.put('cache',visionKey(p.image,p.title),{result:{itemIsClothing:true,category:'dress',colors:['black'],styles:['90s_minimalism'],attributes:{sleeves:'long',neckline:'high',length:'maxi',fit:'loose',transparency:'opaque',slits:'none',cutouts:'none'},evidence:{sleeves:{confidence:0.9,reason:'photo'}},confidence:0.9}});
   const out=await analyze(p);
   assert.equal(out.visionCached,true);assert.equal(out.attributes.sleeves,'long');assert.equal(out.analysisSource,'vision+description');
  }finally{globalThis.fetch=original;delete process.env.GEMINI_API_KEY;delete process.env.VISION_PROVIDER;}

@@ -18,7 +18,7 @@ const { rankProducts } = await import('../src/rank.mjs');
 const { defaultPreferences } = await import('../src/preferences.mjs');
 const { discoveryCandidates } = await import('../src/discovery.mjs');
 const { aestheticQueries } = await import('../src/aesthetic-sources.mjs');
-const { preferenceMigrationPlan, migrateClearPreferences, AMBIGUOUS_PREF_MAP } = await import('../src/style-preferences.mjs');
+const { sanitizeStyles } = await import('../src/style-preferences.mjs');
 
 const prefs = () => {
   const p = defaultPreferences();
@@ -179,17 +179,8 @@ test('aesthetic source config yields search hints for streetwear/earthy/clean_gi
   assert.ok(aestheticQueries('grunge').some(q => /Minga|grunge/i.test(q.q)));
 });
 
-test('preference migration: clear maps apply; ambiguous wait for confirmation', () => {
-  const plan = preferenceMigrationPlan(['90s chic', 'clean girl', 'whimsy', 'alternative', 'sporty', 'y2k']);
-  assert.ok(plan.clear.some(x => x.to === '90s_minimalism') || plan.already.some(x => x.to === '90s_minimalism'));
-  assert.ok(plan.already.some(x => x.to === 'clean_girl') || plan.clear.some(x => x.to === 'clean_girl'));
-  assert.ok(plan.ambiguous.some(x => x.from === 'whimsy' && x.proposed === 'coquette'));
-  assert.ok(plan.ambiguous.some(x => x.from === 'alternative' && x.proposed === 'grunge'));
-  assert.ok(plan.ambiguous.some(x => x.from === 'sporty'));
-  assert.equal(plan.awaitingConfirmation, true);
-  assert.ok(AMBIGUOUS_PREF_MAP.whimsy);
-  const migrated = migrateClearPreferences(['90s chic', 'whimsy', 'y2k']);
-  assert.ok(migrated.styles.includes('90s_minimalism'));
-  assert.ok(migrated.styles.includes('y2k'));
-  assert.ok(migrated.styles.includes('whimsy'), 'ambiguous whimsy kept until confirmed');
+test('saved preferences: legacy aesthetics are dropped, seven labels kept', () => {
+  const { styles, dropped } = sanitizeStyles(['90s_minimalism', 'whimsy', 'alternative', 'sporty', 'clean girl', 'romantic', 'y2k']);
+  assert.deepEqual(styles.sort(), ['90s_minimalism', 'clean_girl', 'y2k'].sort());
+  assert.ok(dropped.includes('whimsy') && dropped.includes('alternative') && dropped.includes('sporty') && dropped.includes('romantic'));
 });

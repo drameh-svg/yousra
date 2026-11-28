@@ -20,9 +20,10 @@ const profile=(o={})=>({id:'p',preferences:{...defaultPreferences(),...o},swipes
 const ids=list=>list.map(x=>x.id);
 
 test('For You filter labels are understood: plurals, abayas, aesthetics, colour shades',()=>{
- assert.deepEqual(filtersFrom({category:'Dresses',style:'90s Chic',color:'Olive',size:'M'}),{category:'dress',style:'90s_minimalism',color:'green',size:'m'});
+ assert.deepEqual(filtersFrom({category:'Dresses',style:'90s Minimalism',color:'Olive',size:'M'}),{category:'dress',style:'90s_minimalism',color:'green',size:'m'});
  assert.equal(filtersFrom({category:'Abayas'}).category,'abaya');
  assert.throws(()=>filtersFrom({category:'Shoes'}));
+ assert.throws(()=>filtersFrom({style:'whimsy'}),'legacy aesthetics rejected');
 });
 const classified=(id,style,extra={})=>item(id,{
  ...extra,

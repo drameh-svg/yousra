@@ -1,9 +1,7 @@
-// Shared vocabulary: seven SigLIP2 classifier aesthetics (shopper-facing), colour families, clothing types.
-// Aesthetic FILTERING when a style is selected uses styleClassification from the Python worker only —
-// never Gemini/text tags as the gate. Gemini may still emit legacy style tags for taste ranking features.
+// Seven SigLIP2 classifier aesthetics only. Old six-set / legacy tags are not accepted or remapped.
+// Aesthetic FILTERING uses styleClassification from the Python worker — never Gemini tags as the gate.
 
 export const CLASSIFIER_STYLES = ['90s_minimalism','clean_girl','coquette','earthy','grunge','streetwear','y2k'];
-/** Shopper-facing aesthetic ids — the seven SigLIP labels. */
 export const AESTHETICS = CLASSIFIER_STYLES;
 
 export const STYLE_LABELS = {
@@ -16,26 +14,24 @@ export const STYLE_LABELS = {
   y2k: 'Y2K',
 };
 
-/** Clear preference / UI renames → classifier id. Ambiguous ones live in style-preferences.mjs. */
-export const LEGACY_STYLES = {
-  minimal: ['clean_girl'], classic: ['90s_minimalism'], casual: ['clean_girl'], elegant: ['90s_minimalism'],
-  boho: ['earthy'],
-  // Display / slug forms
-  '90s chic': ['90s_minimalism'], '90s-chic': ['90s_minimalism'], 'clean girl': ['clean_girl'], 'clean-girl': ['clean_girl'],
-};
+/** Slug / display forms of the seven only. */
 const ALIASES = {
-  '90s': '90s_minimalism', '90s-chic': '90s_minimalism', '90s chic': '90s_minimalism', nineties: '90s_minimalism',
-  'clean-girl': 'clean_girl', cleangirl: 'clean_girl', 'clean girl': 'clean_girl',
+  '90s': '90s_minimalism',
+  '90s-minimalism': '90s_minimalism',
+  '90s minimalism': '90s_minimalism',
+  'clean-girl': 'clean_girl',
+  cleangirl: 'clean_girl',
+  'clean girl': 'clean_girl',
 };
 
-// Listing-text cues used only for soft taste features when no classifier ranks exist — NOT for style gates.
+// Soft text cues for taste features when no classifier ranks exist — NOT for style gates.
 const cue = phrases => new RegExp(`\\b(?:${phrases.join('|')})\\b`);
 const CUES = {
   y2k: cue(['y2k','metallic','iridescent','holographic','rhinestones?','bedazzled','butterfly','velour','baby tee','low[- ]rise','cyber','futuristic','chrome','mesh top','cargo']),
-  coquette: cue(['coquette','whimsical','whimsy','cottagecore','fairy','puff[- ]sleeves?','ruffled?','ruffles','frill(?:ed|s|y)?','lace trim','tulle','organza','smock(?:ed|ing)?','broderie','eyelet','pastel','ditsy','prairie','bow detail','tiered']),
+  coquette: cue(['coquette','cottagecore','fairy','puff[- ]sleeves?','ruffled?','ruffles','frill(?:ed|s|y)?','lace trim','tulle','organza','smock(?:ed|ing)?','broderie','eyelet','pastel','ditsy','prairie','bow detail','tiered']),
   '90s_minimalism': cue(['90s','nineties','slip dress','satin slip','blazer','tailored','structured','minimalist','column dress','monochrome','pinstripe','trench']),
   clean_girl: cue(['clean girl','ribbed','basic','essentials?','everyday','jersey','modal','neutral','oat','stone','ecru','effortless','soft knit','lounge','relaxed fit']),
-  grunge: cue(['grunge','punk','goth(?:ic)?','edgy','alt','alternative','buckles?','grommets?','distressed','patchwork','asymmetric(?:al)?','corset','leather','studded','band tee','dark academia']),
+  grunge: cue(['grunge','punk','goth(?:ic)?','edgy','buckles?','grommets?','distressed','patchwork','asymmetric(?:al)?','corset','leather','studded','band tee','dark academia']),
   earthy: cue(['earthy','linen','terracotta','rust','olive','moss','sand','corduroy','suede','botanical','embroidered','embroidery','folk','crochet','natural fabric','organic cotton','khaki','camel','tan']),
   streetwear: cue(['streetwear','hoodie','baggy','oversized graphic','skate','urban casual','cargo pant']),
 };
@@ -46,10 +42,9 @@ export function normalizeStyle(value) {
   if (!s) return [];
   const snake = s.replace(/[-\s]+/g, '_');
   if (CLASSIFIER_STYLES.includes(snake)) return [snake];
-  if (CLASSIFIER_STYLES.includes(s)) return [s];
   if (ALIASES[s]) return [ALIASES[s]];
   if (ALIASES[snake]) return [ALIASES[snake]];
-  return LEGACY_STYLES[s] || LEGACY_STYLES[snake] || [];
+  return [];
 }
 export const normalizeStyles = list => [...new Set((list || []).flatMap(normalizeStyle))];
 
@@ -65,8 +60,7 @@ export function inferAesthetics(text) {
 }
 
 /**
- * Soft aesthetic tags for taste ranking features.
- * Prefer SigLIP ranked labels when present; else stored styles / text cues.
+ * Soft aesthetic tags for taste ranking. Prefer SigLIP ranks; else stored styles / text cues.
  * Never used as the hard gate when a shopper selects a style filter.
  */
 export function productAesthetics(p) {

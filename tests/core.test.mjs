@@ -16,11 +16,11 @@ delete process.env.SERPER_API_KEY;delete process.env.GEMINI_API_KEY;delete proce
 process.env.LOCAL_DB_PATH=join(await mkdtemp(join(tmpdir(),'yousra-test-')),'test.sqlite');
 process.env.APP_ORIGIN='http://localhost:3000';
 const prefs=()=>{const p=defaultPreferences();p.rules.dress.sleeves='long';p.rules.dress.length='maxi';return p;};
-const garment=(id,overrides={})=>({id,title:'Blue maxi dress',description:'',category:'dress',styles:['minimal'],colors:['blue'],attributes:{sleeves:'long',length:'maxi'},confidence:0.9,analysisSource:'vision+description',shippingUS:'unknown',price:40,currency:'USD',sizes:['m'],...overrides});
+const garment=(id,overrides={})=>({id,title:'Blue maxi dress',description:'',category:'dress',styles:['clean_girl'],colors:['blue'],attributes:{sleeves:'long',length:'maxi'},confidence:0.9,analysisSource:'vision+description',shippingUS:'unknown',price:40,currency:'USD',sizes:['m'],...overrides});
 
 test('clear modesty violations excluded; unknown evidence retained and demoted',()=>{
  const profile={preferences:prefs(),swipes:[]};
- const products=[garment('uncertain',{attributes:{sleeves:'unknown',length:'maxi'},styles:['minimal']}),garment('bad',{attributes:{sleeves:'short',length:'maxi'}}),garment('good')];
+ const products=[garment('uncertain',{attributes:{sleeves:'unknown',length:'maxi'},styles:['clean_girl']}),garment('bad',{attributes:{sleeves:'short',length:'maxi'}}),garment('good')];
  const ranked=rankProducts(products,profile,[],[]);
  assert.deepEqual(ranked.map(x=>x.id),['good','uncertain']);assert.equal(ranked[1].match.uncertain,true);
 });
@@ -36,8 +36,8 @@ test('dislikes hide only feed, price and size filters exclude unverified values'
  assert.deepEqual(rankProducts(products,profile,[],[],{maxPrice:50,size:'m'}).map(x=>x.id),['x']);
 });
 test('learning changes order within eligible products',()=>{
- const profile={preferences:defaultPreferences(),swipes:[]};profile.preferences.styles=['classic'];
- const products=[garment('a',{styles:['classic']}),garment('b',{styles:['boho']})];
+ const profile={preferences:defaultPreferences(),swipes:[]};profile.preferences.styles=['90s_minimalism'];
+ const products=[garment('a',{styles:['90s_minimalism']}),garment('b',{styles:['earthy']})];
  assert.equal(rankProducts(products,profile,[],[])[0].id,'a');
  assert.equal(rankProducts(products,profile,[{productId:'b',liked:true,saved:true}],[])[0].id,'b');
 });
@@ -133,9 +133,9 @@ test('indexed photos keep their original retailer product and explicit violation
 
 test('historical likes outside a search subset influence eligible similar items, never restrictions',()=>{
  const profile={preferences:prefs(),swipes:[]};
- const liked=garment('past',{title:'Floral romantic blue maxi dress',styles:['romantic'],colors:['blue']});
- const same=garment('similar',{title:'Floral romantic maxi dress',styles:['romantic'],colors:['blue']});
- const other=garment('other',{title:'Minimal black maxi dress',styles:['minimal'],colors:['black']});
+ const liked=garment('past',{title:'Floral romantic blue maxi dress',styles:['coquette'],colors:['blue']});
+ const same=garment('similar',{title:'Floral romantic maxi dress',styles:['coquette'],colors:['blue']});
+ const other=garment('other',{title:'Minimal black maxi dress',styles:['clean_girl'],colors:['black']});
  const violation=garment('violation',{...same,id:'violation',attributes:{sleeves:'short',length:'maxi'}});
  const ranked=rankProducts([other,same,violation],profile,[{productId:'past',liked:true}],[],{},'',true,[liked,same,other,violation]);
  assert.equal(ranked[0].id,'similar');assert.equal(ranked.some(x=>x.id==='violation'),false);
@@ -241,10 +241,10 @@ test('short adaptive onboarding saves explicit preferences and rejects invalid v
  const a=await client();await a('/auth/signup','POST',{email:'adaptive@example.com',password:'adaptive-test-password'});
  assert.equal((await a('/profile','PUT',{styleVotes:[{id:'1',like:true},{id:'1',like:false}],preferences:defaultPreferences(),completeOnboarding:true})).status,400);
  assert.equal((await a('/profile','PUT',{styleVotes:[{id:'untrusted',like:true}],preferences:defaultPreferences(),completeOnboarding:true})).status,400);
- const preferences=defaultPreferences();preferences.styles=['casual'];preferences.budgetMax=55;
+ const preferences=defaultPreferences();preferences.styles=['clean_girl'];preferences.budgetMax=55;
  const result=await a('/profile','PUT',{styleVotes:[{id:'25',like:true},{id:'26',like:false}],preferences,completeOnboarding:true});
  assert.equal(result.status,200);assert.equal(result.data.profile.onboarded,true);
- const me=(await a('/me')).data;assert.equal(me.profile.styleVotes.length,2);assert.equal(me.profile.preferences.budgetMax,55);assert.deepEqual(me.profile.preferences.styles,['casual']);
+ const me=(await a('/me')).data;assert.equal(me.profile.styleVotes.length,2);assert.equal(me.profile.preferences.budgetMax,55);assert.deepEqual(me.profile.preferences.styles,['clean_girl']);
  assert.equal((await a('/feed')).status,200);
 });
 
@@ -311,9 +311,9 @@ test('price refresh uses cached verified facts, persists them and requires authe
 
 
 test('explicit tastes outrank unrelated source confidence in search and feed, never hard restrictions',()=>{
- const p=defaultPreferences();p.styles=['casual'];p.colors=['blue'];p.preferredBrands=['Uniqlo'];p.rules.dress.sleeves='long';p.budgetMax=60;
- const relevant=garment('relevant',{styles:['casual'],colors:['blue'],brand:'Uniqlo',price:40,confidence:0.35,analysisSource:'search-description',attributes:{sleeves:'unknown',length:'maxi'}});
- const unrelated=garment('unrelated',{styles:['elegant'],colors:['red'],brand:'Other',confidence:0.99});
+ const p=defaultPreferences();p.styles=['clean_girl'];p.colors=['blue'];p.preferredBrands=['Uniqlo'];p.rules.dress.sleeves='long';p.budgetMax=60;
+ const relevant=garment('relevant',{styles:['clean_girl'],colors:['blue'],brand:'Uniqlo',price:40,confidence:0.35,analysisSource:'search-description',attributes:{sleeves:'unknown',length:'maxi'}});
+ const unrelated=garment('unrelated',{styles:['90s_minimalism'],colors:['red'],brand:'Other',confidence:0.99});
  const violating={...relevant,id:'violating',attributes:{sleeves:'short'},confidence:1};
  const expensive={...relevant,id:'expensive',price:100};
  for(const feed of [false,true]){
@@ -324,7 +324,7 @@ test('explicit tastes outrank unrelated source confidence in search and feed, ne
 });
 test('favorite brands and coverage presets persist in account preferences',async()=>{
  const a=await client();await a('/auth/signup','POST',{email:'favorite-brands@example.com',password:'preferred-brands-password'});
- const p=defaultPreferences();p.styles=['casual'];p.preferredBrands=['Uniqlo'];p.budgetMax=50;
+ const p=defaultPreferences();p.styles=['clean_girl'];p.preferredBrands=['Uniqlo'];p.budgetMax=50;
  assert.equal((await a('/profile','PUT',{preferences:p,coveragePreset:'Moderate',styleVotes:[],completeOnboarding:true})).status,200);
  const me=(await a('/me')).data;assert.deepEqual(me.profile.preferences.preferredBrands,['uniqlo']);assert.equal(me.profile.coveragePreset,'Moderate');assert.equal(me.profile.preferences.budgetMax,50);
 });
@@ -340,7 +340,7 @@ test('fast first load: onboarding warms the first searches and the feed does not
   };
   const a=await client();
   await a('/auth/signup','POST',{email:'warm-feed@example.com',password:'test-password-6'});
-  await a('/profile','PUT',{swipes,completeOnboarding:true,preferences:{...defaultPreferences(),styles:['sporty'],preferredBrands:['WarmTestBrand']}});
+  await a('/profile','PUT',{swipes,completeOnboarding:true,preferences:{...defaultPreferences(),styles:['streetwear'],preferredBrands:['WarmTestBrand']}});
   await settleBackground();
   assert.equal(calls,2,'rounds 0 and 1 searched right after onboarding');
   const started=Date.now();

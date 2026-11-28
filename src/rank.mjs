@@ -53,22 +53,14 @@ export function rankProducts(products, profile, interactions, swipes, filters={}
       const named=colorFamilies([p.title]);
       if(named.length?!named.includes(filters.color):!colorFamilies(p.colors).includes(filters.color))return [];
     }
-    // Aesthetic gate runs BEFORE coverage/modesty. Brand/store name alone never passes.
-    // If the product has a successful SigLIP classification, use ranked image labels (1st/2nd/3rd weights).
-    // If classification was attempted and failed/unavailable, fail closed for style filters.
-    // If not classified yet, fall back to Gemini/text aesthetics so existing catalog pages keep working until backfill.
+    // Aesthetic gate BEFORE coverage/modesty. Brand/store alone never passes.
+    // CRITICAL: when a style is selected, ONLY SigLIP styleClassification may pass the gate — never Gemini/text tags.
     let aesthetic=null;
     if(filters.style){
       const clf=classifierStyle(filters.style);
-      const sc=p.styleClassification;
-      if(clf&&sc?.status==='ok'){
-        aesthetic=aestheticMatch(p,clf);
-        if(!aesthetic.pass) return [];
-      }else if(clf&&sc&&sc.status!=='ok'){
-        return [];
-      }else if(!productAesthetics(p).includes(filters.style)){
-        return [];
-      }
+      if(!clf) return [];
+      aesthetic=aestheticMatch(p,clf);
+      if(!aesthetic.pass) return [];
     }
     // Most retailers don't expose sizes. Confirmed sizes must match; unconfirmed ones stay, ranked lower and labelled.
     const knownSizes=(p.sizes||[]).map(x=>String(x).toLowerCase());

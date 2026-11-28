@@ -35,10 +35,12 @@ export async function api<T>(path:string,method='GET',data?:unknown,signal?:Abor
  return result as T;
 }
 export const categories:{id:Category;label:string}[]=[{id:'dress',label:'Dresses'},{id:'skirt',label:'Skirts'},{id:'top',label:'Tops'},{id:'pants',label:'Pants'},{id:'outerwear',label:'Outerwear'}];
-export const allStyles=['y2k','whimsy','90s chic','clean girl','alternative','earthy'];
+export const allStyles=['90s_minimalism','clean_girl','coquette','earthy','grunge','streetwear','y2k'];
 export const styleLabel:Record<string,string>={
-  'y2k':'Y2K','whimsy':'Whimsy','90s chic':'90s Chic',
-  'clean girl':'Clean Girl','alternative':'Alternative','earthy':'Earthy',
+  '90s_minimalism':'90s Minimalism',clean_girl:'Clean Girl',coquette:'Coquette',
+  earthy:'Earthy',grunge:'Grunge',streetwear:'Streetwear',y2k:'Y2K',
+  // Legacy display keys (read-only until preference migration confirms ambiguous maps)
+  whimsy:'Whimsy','90s chic':'90s Chic','clean girl':'Clean Girl',alternative:'Alternative',
 };
 export const colors=['black','white','blue','navy','green','pink','red','brown','beige','cream','gray','purple','yellow'];
 export const pretty=(s:string)=>styleLabel[s]??s.replaceAll('_',' ').replace(/\b\w/g,c=>c.toUpperCase());

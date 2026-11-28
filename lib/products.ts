@@ -1,4 +1,15 @@
-export type Aesthetic = "Y2K" | "Whimsy" | "90s Chic" | "Clean Girl" | "Alternative" | "Earthy";
+export type Aesthetic =
+  | "Y2K"
+  | "Coquette"
+  | "90s Minimalism"
+  | "Clean Girl"
+  | "Grunge"
+  | "Streetwear"
+  | "Earthy"
+  // Legacy sample-catalog labels still present on static seed rows until remapped
+  | "Whimsy"
+  | "90s Chic"
+  | "Alternative";
 
 export interface Product {
   id: string;
@@ -417,4 +428,22 @@ export const products: Product[] = [
   },
 ];
 
-export const aesthetics: Aesthetic[] = ["Y2K", "Whimsy", "90s Chic", "Clean Girl", "Alternative", "Earthy"];
+export const aesthetics: Aesthetic[] = [
+  "90s Minimalism",
+  "Clean Girl",
+  "Coquette",
+  "Earthy",
+  "Grunge",
+  "Streetwear",
+  "Y2K",
+];
+/** Map For You chip labels → classifier / API style ids. */
+export const aestheticFilterId: Record<string, string> = {
+  "90s Minimalism": "90s_minimalism",
+  "Clean Girl": "clean_girl",
+  Coquette: "coquette",
+  Earthy: "earthy",
+  Grunge: "grunge",
+  Streetwear: "streetwear",
+  Y2K: "y2k",
+};

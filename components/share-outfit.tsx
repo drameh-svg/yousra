@@ -7,7 +7,15 @@ import {ImagePlus,Plus,X} from 'lucide-react';
 import {api} from '@/lib/api';
 import {fieldClass,primaryClass,secondaryClass} from '@/components/preference-form';
 
-export const STYLES=[{id:'clean girl',label:'Clean Girl'},{id:'earthy',label:'Earthy'},{id:'90s chic',label:'90s Chic'},{id:'whimsy',label:'Whimsy'},{id:'y2k',label:'Y2K'},{id:'alternative',label:'Alternative'}];
+export const STYLES=[
+  {id:'90s_minimalism',label:'90s Minimalism'},
+  {id:'clean_girl',label:'Clean Girl'},
+  {id:'coquette',label:'Coquette'},
+  {id:'earthy',label:'Earthy'},
+  {id:'grunge',label:'Grunge'},
+  {id:'streetwear',label:'Streetwear'},
+  {id:'y2k',label:'Y2K'},
+];
 export const OCCASIONS=[{id:'everyday',label:'Everyday'},{id:'uni & work',label:'Uni & work'},{id:'eid & events',label:'Eid & events'},{id:'wedding guest',label:'Wedding guest'},{id:'travel',label:'Travel'},{id:'active',label:'Active'}];
 const serif:CSSProperties={fontFamily:"var(--font-serif,'Instrument Serif',Georgia,serif)",fontWeight:400};
 

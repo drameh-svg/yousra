@@ -1,11 +1,24 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { aestheticMatch, styleMatchPolicy, shouldClassify, classifyProduct } from '../src/style-classifier.mjs';
-import { rankProducts } from '../src/rank.mjs';
-import { defaultPreferences } from '../src/preferences.mjs';
-import { discoveryCandidates } from '../src/discovery.mjs';
-import { aestheticQueries } from '../src/aesthetic-sources.mjs';
-import { classifierStyle, isClassifierStyle } from '../src/taxonomy.mjs';
+import { mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+process.env.AUTH_MODE = 'local';
+process.env.STORAGE = 'local';
+process.env.NODE_ENV = 'test';
+process.env.APP_ORIGIN = 'http://localhost:3000';
+process.env.LOCAL_DB_PATH = join(await mkdtemp(join(tmpdir(), 'yousra-style-')), 'test.sqlite');
+delete process.env.STYLE_WORKER_URL;
+delete process.env.STYLE_WORKER_SECRET;
+delete process.env.SERPER_API_KEY;
+
+const { aestheticMatch, styleMatchPolicy, shouldClassify, classifyProduct } = await import('../src/style-classifier.mjs');
+const { rankProducts } = await import('../src/rank.mjs');
+const { defaultPreferences } = await import('../src/preferences.mjs');
+const { discoveryCandidates } = await import('../src/discovery.mjs');
+const { aestheticQueries } = await import('../src/aesthetic-sources.mjs');
+const { preferenceMigrationPlan, migrateClearPreferences, AMBIGUOUS_PREF_MAP } = await import('../src/style-preferences.mjs');
 
 const prefs = () => {
   const p = defaultPreferences();
@@ -50,12 +63,10 @@ function withRanks(id, ranks, extra = {}) {
 test('no-style searches are not restricted to the seven classifier categories', () => {
   const profile = { preferences: prefs(), swipes: [] };
   const products = [
-    garment('a', { styles: ['whimsy'], styleClassification: undefined }),
-    garment('b', { styles: ['boho'] }),
+    garment('a', { styles: ['coquette'], styleClassification: undefined }),
+    garment('b', { styles: ['earthy'] }),
   ];
-  const ranked = rankProducts(products, profile, [], [], {});
-  assert.equal(ranked.length, 2);
-  assert.ok(!isClassifierStyle('whimsy') || classifierStyle('whimsy') === 'coquette');
+  assert.equal(rankProducts(products, profile, [], [], {}).length, 2);
 });
 
 test('style in 2nd and 3rd position can match, with unequal rank weights', () => {
@@ -88,12 +99,18 @@ test('brand name alone never passes an aesthetic filter', () => {
   const kotnOnly = garment('brand', {
     brand: 'Kotn',
     store: 'kotn.com',
-    styles: [],
+    styles: ['90s_minimalism'],
     styleClassification: { status: 'ok', ranked: [{ style: 'y2k', score: 0.5, rank: 1 }] },
   });
   assert.equal(aestheticMatch(kotnOnly, '90s_minimalism').pass, false);
   const profile = { preferences: prefs(), swipes: [] };
   assert.equal(rankProducts([kotnOnly], profile, [], [], { style: '90s_minimalism' }).length, 0);
+});
+
+test('Gemini/text style tags alone never pass when a style is selected', () => {
+  const profile = { preferences: prefs(), swipes: [] };
+  const geminiOnly = garment('g', { styles: ['earthy'], styleClassification: undefined });
+  assert.equal(rankProducts([geminiOnly], profile, [], [], { style: 'earthy' }).length, 0);
 });
 
 test('style match still fails price and coverage filters', () => {
@@ -130,17 +147,13 @@ test('duplicate Serper results collapse by URL hash', () => {
   assert.equal(found[0].image, 'https://cdn.example/a.jpg');
 });
 
-test('missing or broken images and worker failure leave searchable non-style results', async () => {
-  delete process.env.STYLE_WORKER_URL;
-  delete process.env.STYLE_WORKER_SECRET;
+test('missing images and mocked worker failure leave non-style results; style filters fail closed', async () => {
   const missing = await classifyProduct(garment('m', { image: null }));
   assert.equal(missing.styleClassification.status, 'missing_image');
   const down = await classifyProduct(garment('d'));
   assert.equal(down.styleClassification.status, 'unavailable');
-  // Without a style filter, products still rank.
   const profile = { preferences: prefs(), swipes: [] };
   assert.equal(rankProducts([down], profile, [], [], {}).length, 1);
-  // With a style filter, unclassified products fail closed.
   assert.equal(rankProducts([down], profile, [], [], { style: 'earthy' }).length, 0);
 });
 
@@ -164,4 +177,19 @@ test('aesthetic source config yields search hints for streetwear/earthy/clean_gi
   assert.ok(aestheticQueries('earthy').some(q => /earthy|linen|olive/i.test(q.q)));
   assert.ok(aestheticQueries('clean_girl').some(q => /clean girl|neutral|athleisure/i.test(q.q)));
   assert.ok(aestheticQueries('grunge').some(q => /Minga|grunge/i.test(q.q)));
+});
+
+test('preference migration: clear maps apply; ambiguous wait for confirmation', () => {
+  const plan = preferenceMigrationPlan(['90s chic', 'clean girl', 'whimsy', 'alternative', 'sporty', 'y2k']);
+  assert.ok(plan.clear.some(x => x.to === '90s_minimalism') || plan.already.some(x => x.to === '90s_minimalism'));
+  assert.ok(plan.already.some(x => x.to === 'clean_girl') || plan.clear.some(x => x.to === 'clean_girl'));
+  assert.ok(plan.ambiguous.some(x => x.from === 'whimsy' && x.proposed === 'coquette'));
+  assert.ok(plan.ambiguous.some(x => x.from === 'alternative' && x.proposed === 'grunge'));
+  assert.ok(plan.ambiguous.some(x => x.from === 'sporty'));
+  assert.equal(plan.awaitingConfirmation, true);
+  assert.ok(AMBIGUOUS_PREF_MAP.whimsy);
+  const migrated = migrateClearPreferences(['90s chic', 'whimsy', 'y2k']);
+  assert.ok(migrated.styles.includes('90s_minimalism'));
+  assert.ok(migrated.styles.includes('y2k'));
+  assert.ok(migrated.styles.includes('whimsy'), 'ambiguous whimsy kept until confirmed');
 });

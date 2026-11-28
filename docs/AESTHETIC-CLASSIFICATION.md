@@ -59,6 +59,12 @@ npm test
 ## Hosting
 
 - Node/Next stays on Vercel.
-- Style worker: separate Python host with the joblib + HF weights cache.
-- Shared secret between Node and worker.
-- **No production deploy from this change set without an explicit ops decision.**
+- Style worker pilot: **Modal T4** (`services/style-classifier/modal_app.py`). Dry-run: `./scripts/modal-deploy.sh`. Live deploy only with `./scripts/modal-deploy.sh --approve-live` after approval.
+- Secrets: Modal Secret + Volume for joblib; Vercel `STYLE_WORKER_URL` / `STYLE_WORKER_SECRET` server-only.
+- **Aesthetic filters use SigLIP `styleClassification` only — never Gemini style tags.**
+- **No production go-live from this change set without an explicit ops decision.**
+
+## Preference migration (ambiguous — needs confirmation)
+
+Clear maps (`90s chic`→`90s_minimalism`, `clean girl`→`clean_girl`, …) are coded.  
+**Do not auto-migrate** until confirmed: `whimsy`→?`coquette`, `alternative`→?`grunge`, `sporty`→?`streetwear`, `romantic`→?`coquette`. See `src/style-preferences.mjs`.

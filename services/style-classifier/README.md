@@ -51,3 +51,22 @@ python cli_backfill.py --manifest queue.jsonl --out results.jsonl
 ## Match policy (initial)
 
 See `config.defaults.json`. Accept top-1..top-3 if score ≥ 0.10; ranking weights 1.0 / 0.55 / 0.25. Scores are for ranking only.
+
+## Modal T4 GPU pilot (review-ready — not live)
+
+Deployment is prepared but **must not go live** until explicitly approved.
+
+```bash
+# Checklist / dry-run (default — no deploy)
+./scripts/modal-deploy.sh
+
+# Only after user approval:
+./scripts/modal-deploy.sh --approve-live
+```
+
+1. `modal secret create yusra-style-classifier STYLE_WORKER_SECRET=... STYLE_CLASSIFIER_PATH=/vol/artifacts/style_classifier_and_config.joblib STYLE_CLASSIFIER_TRUSTED_DIR=/vol/artifacts`
+2. `modal volume put yusra-style-artifacts ./style_classifier_and_config.joblib /artifacts/`
+3. Review `modal_app.py` (FastAPI ASGI on T4).
+4. After approval, set Vercel server env `STYLE_WORKER_URL` + `STYLE_WORKER_SECRET`.
+
+Joblib and secrets stay outside Git (Modal Volume + Modal Secret / Vercel env).

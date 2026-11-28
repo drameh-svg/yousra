@@ -1,74 +1,81 @@
-// Shared vocabulary for filters, ranking and search: Gemini/text aesthetics, SigLIP2 classifier styles,
-// colour families and clothing types. Older style tags map at read time; listing text can add keyword evidence
-// for the Gemini set only. Classifier labels come from product images via the Python worker — never from title/brand.
+// Shared vocabulary: seven SigLIP2 classifier aesthetics (shopper-facing), colour families, clothing types.
+// Aesthetic FILTERING when a style is selected uses styleClassification from the Python worker only —
+// never Gemini/text tags as the gate. Gemini may still emit legacy style tags for taste ranking features.
 
-export const AESTHETICS = ['y2k','whimsy','90s chic','clean girl','alternative','earthy'];
-/** Seven-class SigLIP2 + joblib labels (image classifier). */
 export const CLASSIFIER_STYLES = ['90s_minimalism','clean_girl','coquette','earthy','grunge','streetwear','y2k'];
-// Closest new aesthetic for each pre-November style name.
+/** Shopper-facing aesthetic ids — the seven SigLIP labels. */
+export const AESTHETICS = CLASSIFIER_STYLES;
+
+export const STYLE_LABELS = {
+  '90s_minimalism': '90s Minimalism',
+  clean_girl: 'Clean Girl',
+  coquette: 'Coquette',
+  earthy: 'Earthy',
+  grunge: 'Grunge',
+  streetwear: 'Streetwear',
+  y2k: 'Y2K',
+};
+
+/** Clear preference / UI renames → classifier id. Ambiguous ones live in style-preferences.mjs. */
 export const LEGACY_STYLES = {
-  minimal:['clean girl'],classic:['90s chic'],casual:['clean girl'],elegant:['90s chic'],
-  romantic:['whimsy'],boho:['earthy'],streetwear:['y2k'],sporty:['y2k'],
+  minimal: ['clean_girl'], classic: ['90s_minimalism'], casual: ['clean_girl'], elegant: ['90s_minimalism'],
+  boho: ['earthy'],
+  // Display / slug forms
+  '90s chic': ['90s_minimalism'], '90s-chic': ['90s_minimalism'], 'clean girl': ['clean_girl'], 'clean-girl': ['clean_girl'],
 };
-const ALIASES = {'90s':'90s chic','90s-chic':'90s chic','nineties':'90s chic','clean-girl':'clean girl','cleangirl':'clean girl','whimsical':'whimsy','alt':'alternative'};
-/** Map UI / Gemini labels and slugs onto classifier snake_case ids when a style filter is applied. */
-const TO_CLASSIFIER = {
-  'y2k':'y2k', y2k:'y2k',
-  'earthy':'earthy', earthy:'earthy',
-  'clean girl':'clean_girl', 'clean-girl':'clean_girl', clean_girl:'clean_girl', cleangirl:'clean_girl',
-  '90s chic':'90s_minimalism', '90s-chic':'90s_minimalism', '90s_minimalism':'90s_minimalism', '90s minimalism':'90s_minimalism',
-  'alternative':'grunge', grunge:'grunge',
-  'whimsy':'coquette', coquette:'coquette',
-  streetwear:'streetwear',
+const ALIASES = {
+  '90s': '90s_minimalism', '90s-chic': '90s_minimalism', '90s chic': '90s_minimalism', nineties: '90s_minimalism',
+  'clean-girl': 'clean_girl', cleangirl: 'clean_girl', 'clean girl': 'clean_girl',
 };
-// Listing-text cues. Kept to specific fashion terms so ordinary words don't trigger an aesthetic.
+
+// Listing-text cues used only for soft taste features when no classifier ranks exist — NOT for style gates.
 const cue = phrases => new RegExp(`\\b(?:${phrases.join('|')})\\b`);
 const CUES = {
-  'y2k':cue(['y2k','metallic','iridescent','holographic','rhinestones?','bedazzled','butterfly','velour','baby tee','low[- ]rise','cyber','futuristic','chrome','mesh top','cargo']),
-  'whimsy':cue(['whimsical','whimsy','cottagecore','fairy','puff[- ]sleeves?','ruffled?','ruffles','frill(?:ed|s|y)?','lace trim','tulle','organza','smock(?:ed|ing)?','broderie','eyelet','pastel','ditsy','prairie','bow detail','tiered']),
-  '90s chic':cue(['90s','nineties','slip dress','satin slip','blazer','tailored','structured','minimalist','column dress','monochrome','pinstripe','trench']),
-  'clean girl':cue(['clean girl','ribbed','basic','essentials?','everyday','jersey','modal','neutral','oat','stone','ecru','effortless','soft knit','lounge','relaxed fit']),
-  'alternative':cue(['grunge','punk','goth(?:ic)?','edgy','alt','alternative','buckles?','grommets?','distressed','patchwork','asymmetric(?:al)?','corset','leather','studded','band tee','dark academia']),
-  'earthy':cue(['earthy','linen','terracotta','rust','olive','moss','sand','corduroy','suede','botanical','embroidered','embroidery','folk','crochet','natural fabric','organic cotton','khaki','camel','tan']),
+  y2k: cue(['y2k','metallic','iridescent','holographic','rhinestones?','bedazzled','butterfly','velour','baby tee','low[- ]rise','cyber','futuristic','chrome','mesh top','cargo']),
+  coquette: cue(['coquette','whimsical','whimsy','cottagecore','fairy','puff[- ]sleeves?','ruffled?','ruffles','frill(?:ed|s|y)?','lace trim','tulle','organza','smock(?:ed|ing)?','broderie','eyelet','pastel','ditsy','prairie','bow detail','tiered']),
+  '90s_minimalism': cue(['90s','nineties','slip dress','satin slip','blazer','tailored','structured','minimalist','column dress','monochrome','pinstripe','trench']),
+  clean_girl: cue(['clean girl','ribbed','basic','essentials?','everyday','jersey','modal','neutral','oat','stone','ecru','effortless','soft knit','lounge','relaxed fit']),
+  grunge: cue(['grunge','punk','goth(?:ic)?','edgy','alt','alternative','buckles?','grommets?','distressed','patchwork','asymmetric(?:al)?','corset','leather','studded','band tee','dark academia']),
+  earthy: cue(['earthy','linen','terracotta','rust','olive','moss','sand','corduroy','suede','botanical','embroidered','embroidery','folk','crochet','natural fabric','organic cotton','khaki','camel','tan']),
+  streetwear: cue(['streetwear','hoodie','baggy','oversized graphic','skate','urban casual','cargo pant']),
 };
 const styleCache = new WeakMap();
+
 export function normalizeStyle(value) {
-  const s = String(value||'').toLowerCase().trim().replace(/\s+/g,' ');
-  if (AESTHETICS.includes(s)) return [s];
+  const s = String(value || '').toLowerCase().trim().replace(/\s+/g, ' ');
+  if (!s) return [];
+  const snake = s.replace(/[-\s]+/g, '_');
+  if (CLASSIFIER_STYLES.includes(snake)) return [snake];
+  if (CLASSIFIER_STYLES.includes(s)) return [s];
   if (ALIASES[s]) return [ALIASES[s]];
-  const snake = s.replace(/[-\s]+/g,'_');
-  if (CLASSIFIER_STYLES.includes(snake)) {
-    // Prefer a Gemini display label when one maps cleanly; otherwise keep classifier id for filters.
-    if (snake === 'clean_girl') return ['clean girl'];
-    if (snake === '90s_minimalism') return ['90s chic'];
-    if (snake === 'grunge') return ['alternative'];
-    if (snake === 'coquette') return ['whimsy'];
-    if (snake === 'streetwear') return ['streetwear'];
-    return [snake === 'y2k' || snake === 'earthy' ? snake : snake];
-  }
+  if (ALIASES[snake]) return [ALIASES[snake]];
   return LEGACY_STYLES[s] || LEGACY_STYLES[snake] || [];
 }
-export const normalizeStyles = list => [...new Set((list||[]).flatMap(normalizeStyle))];
+export const normalizeStyles = list => [...new Set((list || []).flatMap(normalizeStyle))];
+
 export function classifierStyle(value) {
-  const raw = String(value||'').toLowerCase().trim();
-  if (!raw) return null;
-  if (TO_CLASSIFIER[raw]) return TO_CLASSIFIER[raw];
-  const spaced = raw.replace(/[_-]+/g,' ');
-  if (TO_CLASSIFIER[spaced]) return TO_CLASSIFIER[spaced];
-  const snake = raw.replace(/[-\s]+/g,'_');
-  return CLASSIFIER_STYLES.includes(snake) ? snake : null;
+  const mapped = normalizeStyle(value)[0];
+  return CLASSIFIER_STYLES.includes(mapped) ? mapped : null;
 }
-export const isClassifierStyle = value => CLASSIFIER_STYLES.includes(classifierStyle(value)||'');
+export const isClassifierStyle = value => !!classifierStyle(value);
+
 export function inferAesthetics(text) {
-  const t = String(text||'').toLowerCase();
-  return AESTHETICS.filter(a => CUES[a].test(t));
+  const t = String(text || '').toLowerCase();
+  return CLASSIFIER_STYLES.filter(a => CUES[a]?.test(t));
 }
-// Aesthetics for a product: model/stored tags (normalised) plus text cues when the tags are missing.
-// Classifier ranks are separate (styleClassification) and used when a classifier aesthetic is selected.
+
+/**
+ * Soft aesthetic tags for taste ranking features.
+ * Prefer SigLIP ranked labels when present; else stored styles / text cues.
+ * Never used as the hard gate when a shopper selects a style filter.
+ */
 export function productAesthetics(p) {
   if (p && typeof p === 'object' && styleCache.has(p)) return styleCache.get(p);
+  const fromClassifier = (p?.styleClassification?.status === 'ok' && Array.isArray(p.styleClassification.ranked))
+    ? p.styleClassification.ranked.map(r => r.style).filter(s => CLASSIFIER_STYLES.includes(s))
+    : [];
   const tagged = normalizeStyles(p?.styles);
-  const out = tagged.length ? tagged : inferAesthetics(`${p?.title||''} ${p?.description||''}`);
+  const out = fromClassifier.length ? [...new Set(fromClassifier)] : (tagged.length ? tagged : inferAesthetics(`${p?.title || ''} ${p?.description || ''}`));
   if (p && typeof p === 'object') styleCache.set(p, out);
   return out;
 }
@@ -90,21 +97,22 @@ const SHADES = {
 };
 export function colorFamilies(list) {
   const out = new Set();
-  for (const raw of list||[]) { const c = String(raw).toLowerCase(); for (const [family,re] of Object.entries(SHADES)) if (re.test(c)) out.add(family); }
+  for (const raw of list || []) { const c = String(raw).toLowerCase(); for (const [family, re] of Object.entries(SHADES)) if (re.test(c)) out.add(family); }
   return [...out];
 }
 
-// Clothing types. "abaya" is a type within dresses/outerwear, detected from the listing wording.
 export const CATEGORY_ALIASES = {dress:'dress',dresses:'dress',skirt:'skirt',skirts:'skirt',top:'top',tops:'top',blouse:'top',blouses:'top',
   pants:'pants',trousers:'pants',outerwear:'outerwear',coats:'outerwear',jackets:'outerwear',abaya:'abaya',abayas:'abaya'};
-export const normalizeCategory = value => CATEGORY_ALIASES[String(value||'').toLowerCase().trim()] || null;
+export const normalizeCategory = value => CATEGORY_ALIASES[String(value || '').toLowerCase().trim()] || null;
 const ABAYA = /\b(abaya|abayas|jilbab|jilbaab|kaftan|caftan|jalabiya|jalabiyah|khimar dress|thobe)\b/i;
-export const isAbaya = p => ABAYA.test(`${p?.title||''} ${p?.description||''}`) && ['dress','outerwear','unknown',undefined,null,''].includes(p?.category);
+export const isAbaya = p => ABAYA.test(`${p?.title || ''} ${p?.description || ''}`) && ['dress','outerwear','unknown',undefined,null,''].includes(p?.category);
 
-// Search wording for each aesthetic: Google understands "whimsical floral" better than "whimsy".
-// Words stores actually use in product titles (TikTok names like "clean girl" rarely appear in listings).
-export const AESTHETIC_SEARCH = {'y2k':'y2k','whimsy':'floral ruffle','90s chic':'minimalist tailored','clean girl':'neutral basic',
-  'alternative':'black grunge','earthy':'linen','streetwear':'streetwear oversized',
-  // Classifier ids (when filters send snake_case)
-  '90s_minimalism':'minimalist tailored','clean_girl':'neutral basic','coquette':'bow lace ruffle',
-  'grunge':'black grunge'};
+export const AESTHETIC_SEARCH = {
+  y2k: 'y2k',
+  coquette: 'bow lace ruffle',
+  '90s_minimalism': 'minimalist tailored',
+  clean_girl: 'neutral basic',
+  grunge: 'black grunge',
+  earthy: 'linen',
+  streetwear: 'streetwear oversized',
+};

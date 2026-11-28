@@ -37,8 +37,8 @@ function shopUrl(p) {
 }
 function publicProduct(p) {
   const shop=shopUrl(p);
-  // Cards show the six current aesthetics, whatever names the product was tagged with when it was analysed.
-  return {...p,styles:productAesthetics(p),price:Number.isFinite(p.price)&&p.price>0&&p.currency?p.price:null,originalImage:p.image,image:p.image&&!p.demo?`/api/products/${p.id}/image`:p.image,fullImage:p.image&&!p.demo?`/api/products/${p.id}/image?full=1`:p.image,images:p.demo?p.images:(p.images||[]).map((_,i)=>`/api/products/${p.id}/image?index=${i}`),affiliate:shop.affiliate,shopPath:`/api/products/${p.id}/outbound`,sourceUrl:p.url,shopAvailable:isProductUrl(p.url)&&p.productPage!==false};
+  // Cards prefer SigLIP ranked styles when classified; otherwise soft tags (never used as the style gate).
+  return {...p,styles:productAesthetics(p),styleClassification:p.styleClassification||null,price:Number.isFinite(p.price)&&p.price>0&&p.currency?p.price:null,originalImage:p.image,image:p.image&&!p.demo?`/api/products/${p.id}/image`:p.image,fullImage:p.image&&!p.demo?`/api/products/${p.id}/image?full=1`:p.image,images:p.demo?p.images:(p.images||[]).map((_,i)=>`/api/products/${p.id}/image?index=${i}`),affiliate:shop.affiliate,shopPath:`/api/products/${p.id}/outbound`,sourceUrl:p.url,shopAvailable:isProductUrl(p.url)&&p.productPage!==false};
 }
 function pages(items,url) {const offset=Math.max(0,Number(url.searchParams.get('offset'))||0),limit=Math.max(1,Math.min(48,Number(url.searchParams.get('limit'))||24));return {items:items.slice(offset,offset+limit).map(publicProduct),total:items.length,nextOffset:offset+limit<items.length?offset+limit:null};}
 async function product(key) {return await store.get('product',key)||curatedProducts.find(x=>x.id===key)||(config().demo?sampleProducts.find(x=>x.id===key):null);}

@@ -96,6 +96,7 @@ export function filtersFrom(input={}) {
   for (const k of ['style','color','size','category','shipping']) if (input[k]) o[k]=text(input[k],60).toLowerCase().trim();
   // The For You panel sends labels like "Dresses", "Abayas", "90s Chic"; accept them in any casing or plural.
   if (o.category) { const c=normalizeCategory(o.category); if(!c)throw new HttpError(400,'Unknown clothing category'); o.category=c; }
+  // Persist / filter on classifier ids (90s_minimalism, clean_girl, …).
   if (o.style) o.style=normalizeStyle(o.style)[0]||o.style;
   if (o.color) o.color=colorFamilies([o.color])[0]||o.color;
   // Brand pages: restrict to one retailer by its domain (and name, for marketplaces that list the brand).

@@ -20,34 +20,39 @@ const profile=(o={})=>({id:'p',preferences:{...defaultPreferences(),...o},swipes
 const ids=list=>list.map(x=>x.id);
 
 test('For You filter labels are understood: plurals, abayas, aesthetics, colour shades',()=>{
- assert.deepEqual(filtersFrom({category:'Dresses',style:'90s Chic',color:'Olive',size:'M'}),{category:'dress',style:'90s chic',color:'green',size:'m'});
+ assert.deepEqual(filtersFrom({category:'Dresses',style:'90s Chic',color:'Olive',size:'M'}),{category:'dress',style:'90s_minimalism',color:'green',size:'m'});
  assert.equal(filtersFrom({category:'Abayas'}).category,'abaya');
  assert.throws(()=>filtersFrom({category:'Shoes'}));
 });
-test('filters match: abaya type, new aesthetics on old/untagged pieces, shades, unconfirmed sizes',()=>{
+const classified=(id,style,extra={})=>item(id,{
+ ...extra,
+ styleClassification:{status:'ok',ranked:[{style,score:0.5,rank:1},{style:'y2k',score:0.2,rank:2},{style:'earthy',score:0.1,rank:3}]},
+});
+test('filters match: abaya type, SigLIP aesthetics (not Gemini tags), shades, unconfirmed sizes',()=>{
  const catalog=[
   item('abaya',{title:'Black open front abaya',category:'outerwear',colors:['black']}),
-  item('legacy',{styles:['romantic'],colors:['olive green']}),
-  item('cue',{title:'Tiered ruffle maxi dress',colors:['sage']}),
-  item('plain',{title:'Navy maxi dress',styles:['minimal'],colors:['navy'],sizes:['XS','S']}),
+  classified('coquette1','coquette',{colors:['olive green']}),
+  classified('clean1','clean_girl',{title:'Navy maxi dress',colors:['navy'],sizes:['XS','S']}),
   item('sized',{title:'Black maxi dress',colors:['black'],sizes:['M','L']}),
+  item('cue',{title:'Tiered ruffle maxi dress',colors:['sage']}),
  ];
  const rank=f=>ids(rankProducts(catalog,profile(),[],[],f));
  assert.deepEqual(rank({category:'abaya'}),['abaya']);
- assert.deepEqual(rank({style:'whimsy'}).sort(),['cue','legacy'],'legacy "romantic" tag and ruffle wording both count as whimsy');
- assert.deepEqual(rank({style:'clean girl'}),['plain']);
- assert.deepEqual(rank({color:'green'}).sort(),['cue','legacy']);
- assert.deepEqual(rank({color:'blue'}),['plain'],'navy is a blue');
+ assert.deepEqual(rank({style:'coquette'}),['coquette1'],'style gate uses SigLIP ranks only');
+ assert.deepEqual(rank({style:'clean_girl'}),['clean1']);
+ assert.equal(rank({style:'coquette'}).includes('cue'),false,'Gemini/text cues alone never pass a style filter');
+ assert.deepEqual(rank({color:'green'}).sort(),['coquette1','cue']);
+ assert.deepEqual(rank({color:'blue'}),['clean1'],'navy is a blue');
  const m=rankProducts(catalog,profile(),[],[],{size:'m'});
- assert.equal(m[0].id,'sized','confirmed size first');assert.ok(!ids(m).includes('plain'),'known sizes without M are excluded');
+ assert.equal(m[0].id,'sized','confirmed size first');assert.ok(!ids(m).includes('clean1'),'known sizes without M are excluded');
  assert.ok(m.find(x=>x.id==='abaya').match.reasons.includes('Size not confirmed'));
 });
 test('feed searches rotate through FEED_BRANDS and use aesthetic wording',()=>{
  process.env.FEED_BRANDS='Aab, Haute Hijab ,Modanisa,Lulus';
- const p=profile({styles:['whimsy']});
+ const p=profile({styles:['coquette']});
  const queries=Array.from({length:8},(_,r)=>feedQuery(p,[],[],r));
  assert.deepEqual(queries.slice(0,4).map(q=>q.brand),['Aab','Haute Hijab','Modanisa','Lulus']);
- assert.ok(queries.every(q=>q.query.includes('floral ruffle')));
+ assert.ok(queries.every(q=>q.query.includes('bow lace ruffle')));
  assert.ok(queries.every(q=>!/\bmodest\b/.test(q.query)),'no "modest" in brand searches');
  assert.ok(queries.every(q=>q.query.split(' ').length<=9),'short queries');
  assert.equal(new Set(queries.map(q=>`${q.query}|${q.page}`)).size,8,'no repeated search');

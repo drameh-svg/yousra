@@ -40,9 +40,17 @@ test('a brand search only keeps results from that site',async()=>{
  finally{globalThis.fetch=original;delete process.env.SERPER_API_KEY;}
 });
 test('style and category pages: only that aesthetic / clothing type',()=>{
- assert.equal(filtersFrom({style:'90s-chic'}).style,'90s chic');assert.equal(filtersFrom({style:'clean-girl'}).style,'clean girl');
- const catalog=[item('slip','a.example',{title:'Satin slip maxi dress'}),item('linen','b.example',{title:'Linen maxi dress'}),item('abaya','c.example',{title:'Black abaya',category:'outerwear'}),item('top','d.example',{title:'Blazer',category:'top'})];
+ assert.equal(filtersFrom({style:'90s-chic'}).style,'90s_minimalism');assert.equal(filtersFrom({style:'clean-girl'}).style,'clean_girl');
+ const ranks=(style)=>({status:'ok',ranked:[{style,score:0.55,rank:1},{style:'earthy',score:0.2,rank:2},{style:'y2k',score:0.1,rank:3}]});
+ const catalog=[
+  item('slip','a.example',{title:'Satin slip maxi dress',styleClassification:ranks('90s_minimalism')}),
+  item('linen','b.example',{title:'Linen maxi dress',styleClassification:ranks('earthy')}),
+  item('abaya','c.example',{title:'Black abaya',category:'outerwear'}),
+  item('top','d.example',{title:'Blazer',category:'top',styleClassification:ranks('90s_minimalism')}),
+  item('gemini-only','e.example',{title:'Satin slip maxi dress',styles:['90s_minimalism']}),
+ ];
  assert.deepEqual(rankProducts(catalog,profile(),[],[],filtersFrom({style:'90s-chic'})).map(x=>x.id).sort(),['slip','top']);
+ assert.ok(!rankProducts(catalog,profile(),[],[],filtersFrom({style:'90s-chic'})).some(x=>x.id==='gemini-only'),'Gemini style tags alone never pass');
  assert.deepEqual(rankProducts(catalog,profile(),[],[],filtersFrom({category:'abayas'})).map(x=>x.id),['abaya']);
  assert.deepEqual(rankProducts(catalog,profile(),[],[],filtersFrom({category:'tops'})).map(x=>x.id),['top']);
 });

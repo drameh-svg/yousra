@@ -15,8 +15,20 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 type SectionId = "modesty" | "aesthetics" | "sizes" | "budget" | "brands" | "account";
-type Aesthetic = "Y2K" | "Whimsy" | "90s Chic" | "Clean Girl" | "Alternative" | "Earthy";
-const AESTHETICS: Aesthetic[] = ["Y2K", "Whimsy", "90s Chic", "Clean Girl", "Alternative", "Earthy"];
+type Aesthetic = "Y2K" | "Coquette" | "90s Minimalism" | "Clean Girl" | "Grunge" | "Streetwear" | "Earthy";
+const AESTHETICS: Aesthetic[] = ["90s Minimalism", "Clean Girl", "Coquette", "Earthy", "Grunge", "Streetwear", "Y2K"];
+const AESTHETIC_IDS: Record<string, string> = {
+  "90s Minimalism": "90s_minimalism",
+  "Clean Girl": "clean_girl",
+  Coquette: "coquette",
+  Earthy: "earthy",
+  Grunge: "grunge",
+  Streetwear: "streetwear",
+  Y2K: "y2k",
+};
+const ID_TO_AESTHETIC: Record<string, Aesthetic> = Object.fromEntries(
+  Object.entries(AESTHETIC_IDS).map(([label, id]) => [id, label as Aesthetic]),
+) as Record<string, Aesthetic>;
 const SIZES = ["XS", "S", "M", "L", "XL", "2XL"];
 const BUDGETS = ["Under $50", "$50–$100", "$100–$200", "$200+"];
 const MODESTY_OPTIONS: Prefs["modesty"][] = ["Conservative", "Moderate", "Relaxed"];
@@ -40,7 +52,7 @@ export default function ProfilePage() {
   const [confirmDelete, setConfirmDelete] = useState(""), [deleting, setDeleting] = useState(false), [deleteError, setDeleteError] = useState("");
 
   useEffect(() => {queueMicrotask(()=>{
-    if(session.user&&session.profile){const p=session.profile.preferences;setForm({...prefs,email:session.user.email,aesthetics:p.styles.map(s=>styleLabel[s]??s.charAt(0).toUpperCase()+s.slice(1)),sizes:p.sizes.map(s=>s.toUpperCase()),brands:p.preferredBrands||[],budget:p.budgetMax==null?'':p.budgetMax===50?'Under $50':p.budgetMax===100?'$50–$100':p.budgetMax===200?'$100–$200':String(p.budgetMax),modesty:(session.profile.coveragePreset||'') as Prefs['modesty']});}
+    if(session.user&&session.profile){const p=session.profile.preferences;setForm({...prefs,email:session.user.email,aesthetics:p.styles.map(s=>ID_TO_AESTHETIC[s]||styleLabel[s]||s).filter((s):s is Aesthetic=>AESTHETICS.includes(s as Aesthetic)),sizes:p.sizes.map(s=>s.toUpperCase()),brands:p.preferredBrands||[],budget:p.budgetMax==null?'':p.budgetMax===50?'Under $50':p.budgetMax===100?'$50–$100':p.budgetMax===200?'$100–$200':String(p.budgetMax),modesty:(session.profile.coveragePreset||'') as Prefs['modesty']});}
     else setForm({...prefs});
   });},[prefs,session.user,session.profile]);
 

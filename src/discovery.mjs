@@ -195,7 +195,8 @@ export function visionProvider() {
 // Garment attributes never change, so vision results are cached permanently by image + title.
 // Re-analysis only refreshes retailer facts (price, stock); it does not spend another vision call.
 // v3: six-aesthetic prompt (Nov 18). v4: rules from the team's labels, focus box, party flag (Nov 24). v5: neckline judged as buttoned; Gemini retries. v6: split sleeves and lace-up fronts are not slits/cut-outs. Bumping re-runs vision once per product when it is next analysed.
-export const VISION_VERSION='v6';
+// v7: Gemini no longer owns aesthetic filtering (SigLIP worker does); soft style ids aligned to seven labels.
+export const VISION_VERSION='v7';
 export const visionKey=(image,title)=>`vision-${VISION_VERSION}:${hash(`${image}|${String(title||'').toLowerCase()}`)}`;
 export const analysisTtlMs=()=>Number(process.env.ANALYSIS_TTL_HOURS||168)*3600000;
 export const analysisConcurrency=()=>Math.max(1,Math.min(10,Number(process.env.ANALYSIS_CONCURRENCY||5)));
@@ -261,15 +262,9 @@ OCCASION: everyday | work | formal | party | lounge | sport. party = cocktail, c
 REVEALING: true when the sale garment itself shows a lot of skin: strapless, spaghetti straps, one-shoulder, backless or low back, plunging neckline, bodycon mini, cut-outs, thigh-high slit, or see-through fabric. Never count styling pieces.
 FOCUS BOX: the sale garment's box in the FIRST photo as [ymin, xmin, ymax, xmax], integers from 0 to 1000, tight around that garment only (a skirt: waistband to hem, not the top worn with it; trousers: waistband to hem). null when the photo already shows only the garment (flat lay or close crop).
 
-Aesthetic style guide (assign all that visually apply):
-- y2k: Early-2000s cyber/futuristic — metallic or iridescent fabrics, logo-heavy graphics, butterfly prints, low-rise silhouettes, velour or nylon tracksuits, bedazzled/rhinestone details, bold neon or holographic tones, tech-inspired construction, zip-up cardigans, corset-style tops, baby tees.
-- whimsy: Dreamy, playful, storybook — delicate floral or botanical prints, lace trims, puff sleeves, ruffle and frill details, pastel/candy tones, cottagecore silhouettes, fairy-tale textures (chiffon, tulle, organza), smocking, broderie anglaise, mushroom/garden motifs.
-- 90s chic: Sleek minimalist 90s references — slip dresses, structured blazers, tailored trousers, monochrome neutrals (cream/camel/charcoal), clean geometric cuts, logomania (subtle branded), denim, oversized but structured shapes, subtle plaid/check tailoring, minimal ornamentation.
-- clean girl: Effortless soft minimalism — neutral/muted palette (white, oat, stone, beige, light grey), relaxed or slightly oversized basics (crew neck tees, ribbed knit tops, wide-leg trousers), elevated everyday fabrics (jersey, modal, fine knit), no-print or tonal, polished simplicity with no fuss.
-- alternative: Edgy, non-conformist — dark palette (black, burgundy, charcoal, forest), punk or gothic references (plaid, asymmetric cuts, buckles, grommets), band/graphic tees, distressed or patchwork details, oversized silhouettes with an edge, industrial fabrics, contrast stitching, deconstructed shapes, indie/dark feminine.
-- earthy: Organic, warm, nature-grounded — warm brown/rust/terracotta/olive/moss/sand tones, natural fabrics (linen, cotton, corduroy, wool, suede), botanical/floral prints, relaxed flowy silhouettes, folk-inspired embroidery, textured weaves, earthy ethnically-influenced patterns, modest and grounded styling.
+Do NOT use styles for shopper aesthetic filters — Yusra classifies aesthetics with a separate SigLIP2 image model. You may still return styles as soft hints only (or an empty array). Allowed soft style ids if used: 90s_minimalism, clean_girl, coquette, earthy, grunge, streetwear, y2k.
 
-Return only JSON: {itemIsClothing:boolean (false for shoes, accessories or non-products), category: dress|skirt|top|pants|outerwear|unknown, colors:string[], styles:string[] (from the six aesthetics above, or an empty array), attributes:{sleeves:sleeveless|short|elbow|long|unknown, neckline:open|medium|high|unknown, length:mini|knee|midi|maxi|unknown, fit:fitted|regular|loose|wide|unknown, transparency:opaque|sheer|unknown, slits:none|present|unknown, cutouts:none|present|unknown}, evidence:{each attribute:{confidence:number 0..1, reason:string}}, occasion:string, revealing:boolean, focusBox:[ymin,xmin,ymax,xmax]|null, confidence:number 0..1}. Do not output retailer, size, price, shipping or URLs.
+Return only JSON: {itemIsClothing:boolean (false for shoes, accessories or non-products), category: dress|skirt|top|pants|outerwear|unknown, colors:string[], styles:string[] (optional soft hints from the seven ids above, or []), attributes:{sleeves:sleeveless|short|elbow|long|unknown, neckline:open|medium|high|unknown, length:mini|knee|midi|maxi|unknown, fit:fitted|regular|loose|wide|unknown, transparency:opaque|sheer|unknown, slits:none|present|unknown, cutouts:none|present|unknown}, evidence:{each attribute:{confidence:number 0..1, reason:string}}, occasion:string, revealing:boolean, focusBox:[ymin,xmin,ymax,xmax]|null, confidence:number 0..1}. Do not output retailer, size, price, shipping or URLs.
 TITLE: ${p.title}
 DESCRIPTION: ${p.description}`;
 }

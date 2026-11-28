@@ -328,11 +328,20 @@ export async function analyze(product) {
   return p;
 }
 // Re-analyse when stale, keeping any human modesty labels written while the analysis ran.
+// Aesthetic classification is a separate background step (SigLIP worker) — never blocks analysis.
 export async function analyzeStored(key) {
   const p=await store.get('product',key);if(!p)return null;
-  if(p.analyzedAt&&Date.now()-Date.parse(p.analyzedAt)<=analysisTtlMs())return p;
+  if(p.analyzedAt&&Date.now()-Date.parse(p.analyzedAt)<=analysisTtlMs()){
+    // Still enqueue style classify if image changed / never classified.
+    const { enqueueStyleClassification } = await import('./style-classifier.mjs');
+    enqueueStyleClassification([key]);
+    return p;
+  }
   const analyzed=await analyze(p),latest=await store.get('product',key);
-  return await store.put('product',key,{...analyzed,...(latest?.humanModesty?{humanModesty:latest.humanModesty}:{})});
+  const saved=await store.put('product',key,{...analyzed,...(latest?.humanModesty?{humanModesty:latest.humanModesty}:{}),...(latest?.styleClassification&&analyzed.image===latest.image?{styleClassification:latest.styleClassification,styleImageHash:latest.styleImageHash}:{})});
+  const { enqueueStyleClassification } = await import('./style-classifier.mjs');
+  enqueueStyleClassification([key]);
+  return saved;
 }
 export function queryFilters(query, supplied) {
   // Deterministic extraction keeps common natural-language searches free.

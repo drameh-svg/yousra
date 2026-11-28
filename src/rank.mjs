@@ -3,7 +3,8 @@ import {isProductUrl} from './product-url.mjs';
 import {curatedProducts} from './curated.mjs';
 import {contentModel,cosine,diversify,explore} from './recommend.mjs';
 import { modestyMatch } from './preferences.mjs';
-import { productAesthetics, normalizeStyles, colorFamilies, isAbaya } from './taxonomy.mjs';
+import { productAesthetics, normalizeStyles, colorFamilies, isAbaya, classifierStyle } from './taxonomy.mjs';
+import { aestheticMatch, styleMatchPolicy } from './style-classifier.mjs';
 
 export const tokens = value => (String(value||'').toLowerCase().match(/[\p{L}\p{N}]+/gu)||[]).map(x=>({dresses:'dress',skirts:'skirt',shirts:'shirt',blouses:'blouse',sweaters:'sweater',coats:'coat',jackets:'jacket',sleeves:'sleeve',trousers:'pants'}[x]||x));
 // Aesthetics and colour families are normalised so old tags, new tags and shades all line up.
@@ -52,7 +53,23 @@ export function rankProducts(products, profile, interactions, swipes, filters={}
       const named=colorFamilies([p.title]);
       if(named.length?!named.includes(filters.color):!colorFamilies(p.colors).includes(filters.color))return [];
     }
-    if(filters.style&&!productAesthetics(p).includes(filters.style)) return [];
+    // Aesthetic gate runs BEFORE coverage/modesty. Brand/store name alone never passes.
+    // If the product has a successful SigLIP classification, use ranked image labels (1st/2nd/3rd weights).
+    // If classification was attempted and failed/unavailable, fail closed for style filters.
+    // If not classified yet, fall back to Gemini/text aesthetics so existing catalog pages keep working until backfill.
+    let aesthetic=null;
+    if(filters.style){
+      const clf=classifierStyle(filters.style);
+      const sc=p.styleClassification;
+      if(clf&&sc?.status==='ok'){
+        aesthetic=aestheticMatch(p,clf);
+        if(!aesthetic.pass) return [];
+      }else if(clf&&sc&&sc.status!=='ok'){
+        return [];
+      }else if(!productAesthetics(p).includes(filters.style)){
+        return [];
+      }
+    }
     // Most retailers don't expose sizes. Confirmed sizes must match; unconfirmed ones stay, ranked lower and labelled.
     const knownSizes=(p.sizes||[]).map(x=>String(x).toLowerCase());
     if(filters.size&&knownSizes.length&&!knownSizes.includes(filters.size)) return [];
@@ -72,9 +89,11 @@ export function rankProducts(products, profile, interactions, swipes, filters={}
     const colorMatch=colorFamilies(p.colors).some(c=>myColors.includes(c))?1:0;
     const normalized=value=>String(value||'').toLowerCase().replace(/[^a-z0-9]/g,'');
     const brandMatch=(prefs.preferredBrands||[]).some(b=>[p.brand,p.store].some(value=>{const brand=normalized(b),store=normalized(value);return brand.length>2?store.includes(brand):store===brand||store===brand+'com'}));
-    const score=lexical*80+styleMatch*50+colorMatch*20+(brandMatch?35:0)+taste*3+learned*25+modest.confidence*8-(uncertain?4:0)+(p.shippingUS==='yes'?2:0)-(sizeUnconfirmed?30:0);
-    const affinity=styleMatch*50+colorMatch*20+(brandMatch?35:0)+taste*3+learned*25;
-    return [{...p,match:{score:Math.round(score*100)/100,affinity:Math.round(affinity*100)/100,confidence:modest.confidence,uncertain,reasons:[...modest.reasons,...(sizeUnconfirmed?['Size not confirmed']:[]),...(learned>0.3?['Similar to pieces you liked or saved']:[]),...(styleMatch?['Matches your styles']:[]),...(colorMatch?['Matches your colors']:[]),...(brandMatch?['From a brand you like']:[])]}}];
+    const policy=styleMatchPolicy();
+    const aestheticBoost=aesthetic?.pass?aesthetic.weight*policy.scoreScale:0;
+    const score=lexical*80+styleMatch*50+colorMatch*20+(brandMatch?35:0)+taste*3+learned*25+modest.confidence*8-(uncertain?4:0)+(p.shippingUS==='yes'?2:0)-(sizeUnconfirmed?30:0)+aestheticBoost;
+    const affinity=styleMatch*50+colorMatch*20+(brandMatch?35:0)+taste*3+learned*25+aestheticBoost;
+    return [{...p,match:{score:Math.round(score*100)/100,affinity:Math.round(affinity*100)/100,confidence:modest.confidence,uncertain,aestheticRank:aesthetic?.rank??null,aestheticScore:aesthetic?.score??null,reasons:[...modest.reasons,...(sizeUnconfirmed?['Size not confirmed']:[]),...(learned>0.3?['Similar to pieces you liked or saved']:[]),...(styleMatch?['Matches your styles']:[]),...(colorMatch?['Matches your colors']:[]),...(brandMatch?['From a brand you like']:[]),...(aesthetic?.pass?[aesthetic.reason]:[])]}}];
   }).sort((a,b)=>b.match.score-a.match.score||a.id.localeCompare(b.id));
   return feed?explore(diversify(ranked,model)):ranked;
 }

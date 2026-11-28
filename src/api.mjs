@@ -55,13 +55,24 @@ async function advance(job,uid) {
   let next={...locked,version:locked.version+1};
   try {
     if(next.phase==='discovery') {
-      const cacheKey=hash(`images-v2:${discoveryProvider()}:`+next.discoveryQuery.toLowerCase());
+      const styleKey=next.filters?.style||'';
+      const cacheKey=hash(`images-v2:${discoveryProvider()}:${styleKey}:`+next.discoveryQuery.toLowerCase());
       const cache=await store.get('cache',cacheKey);
       if(cache&&cache.expires>Date.now())next.analysisIds=cache.productIds;
       else {
         const found=await discover(next.discoveryQuery,1,{hint:coverageHint(next.preferences,next.filters.category)});
-        for(const p of found) {const existing=await store.get('product',p.id);await store.put('product',p.id,existing&&Date.now()-Date.parse(existing.analyzedAt||'')<analysisTtlMs()?existing:{...p,...(existing?.humanModesty?{humanModesty:existing.humanModesty}:{})});}
-        next.analysisIds=found.map(x=>x.id);
+        // When a classifier aesthetic is selected, also run config-editable source queries (still URL-hash deduped).
+        let extras=[];
+        if(styleKey){
+          try{
+            const { discoverAestheticExtras } = await import('./aesthetic-sources.mjs');
+            const { isClassifierStyle } = await import('./taxonomy.mjs');
+            if(isClassifierStyle(styleKey)) extras=await discoverAestheticExtras(styleKey,{limit:Number(process.env.AESTHETIC_EXTRA_LIMIT||12)});
+          }catch(e){next.warnings=[...new Set([...(next.warnings||[]),'Aesthetic source search unavailable; using the main query only.'])];}
+        }
+        const merged=[...new Map([...found,...extras].map(p=>[p.id,p])).values()];
+        for(const p of merged) {const existing=await store.get('product',p.id);await store.put('product',p.id,existing&&Date.now()-Date.parse(existing.analyzedAt||'')<analysisTtlMs()?existing:{...p,...(existing?.humanModesty?{humanModesty:existing.humanModesty}:{}),...(existing?.styleClassification?{styleClassification:existing.styleClassification,styleImageHash:existing.styleImageHash}:{})});}
+        next.analysisIds=merged.map(x=>x.id);
         await store.put('cache',cacheKey,{productIds:next.analysisIds,expires:Date.now()+Number(process.env.SEARCH_TTL_HOURS||6)*3600000});
       }
       next.productIds=[...new Set([...next.productIds,...next.analysisIds])];
@@ -71,6 +82,10 @@ async function advance(job,uid) {
       const ids=analysisIds.slice(next.processed,next.processed+analysisConcurrency());
       const results=await Promise.allSettled(ids.map(key=>analyzeStored(key)));
       if(results.some(r=>r.status==='rejected')) next.warnings=[...new Set([...next.warnings,'Some products could not be analyzed and remain uncertain.'])];
+      // Style classify after coverage analysis (background); search continues if the worker is down.
+      const { enqueueStyleClassification, styleWorkerConfigured } = await import('./style-classifier.mjs');
+      enqueueStyleClassification(ids);
+      if(next.filters?.style&&!styleWorkerConfigured()) next.warnings=[...new Set([...next.warnings,'Aesthetic classifier offline — style-filtered results may be empty until it is back.'])];
       next.processed+=ids.length;next.status=next.processed>=analysisIds.length?'complete':'pending';
     }
   } catch(e) {next.status='error';next.warnings=[...next.warnings,e instanceof HttpError?e.message:'Search could not finish. Cached results are still available.'];}
@@ -119,7 +134,10 @@ export async function handle(request, context={}) {
   try {
     assertEnvironment();csrf(request);
     const url=new URL(request.url),path=url.pathname.replace(/\/$/,''),method=request.method;
-    if(path==='/api/health'&&method==='GET')return json({ok:true,authMode:config().auth,storage:config().storage,discovery:config().demo?'sample':'live',discoveryProvider:discoveryProvider(),vision:!!visionProvider(),visionProvider:visionProvider(),strictStock:strictStock(),revision:process.env.VERCEL_GIT_COMMIT_SHA?.slice(0,12)||null});
+    if(path==='/api/health'&&method==='GET'){
+      const { styleWorkerConfigured, expectedModelVersion } = await import('./style-classifier.mjs');
+      return json({ok:true,authMode:config().auth,storage:config().storage,discovery:config().demo?'sample':'live',discoveryProvider:discoveryProvider(),vision:!!visionProvider(),visionProvider:visionProvider(),strictStock:strictStock(),styleWorker:styleWorkerConfigured(),styleModelVersion:expectedModelVersion(),revision:process.env.VERCEL_GIT_COMMIT_SHA?.slice(0,12)||null});
+    }
     if(['/api/auth/google','/api/auth/callback'].includes(path))throw new HttpError(404,'Use email and password to sign in');
     if(['/api/auth/signup','/api/auth/signin'].includes(path)&&method==='POST') {
       const ip=clientIp(request,context);
@@ -201,6 +219,19 @@ export async function handle(request, context={}) {
     }
     if(path==='/api/labeling/items'&&method==='GET')return json(await labelingItems(u.id,url.searchParams.get('count')));
     if(path==='/api/labeling'&&method==='POST')return json(await submitLabels(await body(request),u),201);
+    // Aesthetic classifier review on real catalog images (/admin/style-review).
+    if(path.startsWith('/api/admin/style-review')){
+      if(!isAdmin(u))throw new HttpError(403,'Admin access required. Add your account email to ADMIN_EMAILS.');
+      const { styleReviewQueue, submitStyleLabel, styleLabelSummary } = await import('./style-review.mjs');
+      const { classifyAndStore } = await import('./style-classifier.mjs');
+      if(path==='/api/admin/style-review/items'&&method==='GET')return json(await styleReviewQueue({limit:url.searchParams.get('count')}));
+      if(path==='/api/admin/style-review/labels'&&method==='POST')return json(await submitStyleLabel(await body(request),u),201);
+      if(path==='/api/admin/style-review/stats'&&method==='GET')return json(styleLabelSummary(await store.list('style_label',undefined,20000)));
+      if(path==='/api/admin/style-review/reclassify'&&method==='POST'){
+        const data=await body(request),pid=text(data.productId,80);if(!pid)throw new HttpError(400,'productId required');
+        return json(await classifyAndStore(pid,{force:!!data.force}));
+      }
+    }
     // Team labeling queue (/admin/label): attribute-by-attribute checks of the AI, admins only.
     if(path.startsWith('/api/admin/label-queue')){
       if(!isAdmin(u))throw new HttpError(403,'Admin access required. Add your account email to ADMIN_EMAILS.');

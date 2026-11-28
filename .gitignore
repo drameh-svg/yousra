@@ -43,3 +43,10 @@ next-env.d.ts
 /data/
 /test-results/
 *.sqlite*
+
+# Aesthetic classifier artifacts (never commit weights, embeddings, or scraped images)
+*.joblib
+*.npy
+services/style-classifier/.venv/
+services/style-classifier/**/__pycache__/
+/tmp-style-images/
